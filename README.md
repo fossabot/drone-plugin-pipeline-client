@@ -6,7 +6,7 @@
 
     pipeline:
       cluster:
-        image: plugins/pipeline_plugin:latest
+        image: banzaicloud/pipeline_client:latest
 
         endpoint: http://[your-host-name-or-ip]/pipeline/api/v1/
         username: admin
@@ -18,17 +18,19 @@
         cluster_location: "eu-west-1"
         cluster_state: "present"
 
-        node_image: ami-34b6764d
+        node_image: ami-XXXXXXXX
         node_instance_type: m4.xlarge
 
-        master_image: ami-34b6764d
+        master_image: ami-XXXXXXXX
         master_instance_type: m4.xlarge
 
         deployment_name: "zeppelin-k8s-charts"
         deployment_stat: "present"
 
 ## Test container/plugin with drone exec
+
     drone exec --repo-name hello-world --workspace-path drone-test .drone.yml
+    
 ## Build new docker image
 
     make docker
