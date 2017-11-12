@@ -1,4 +1,7 @@
+
 ## Pipeline API client plugin for Drone
+
+Pipeline REST API client plugin for Drone. A step in the Pipeline PaaS CI/CD component to provision a Kubernetes cluster or use a managed one.
 
 ### Example drone config
 
