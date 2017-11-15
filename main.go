@@ -16,8 +16,8 @@ func main() {
 	_ = godotenv.Load()
 
 	app := cli.NewApp()
-	app.Name = "pipeline plugin"
-	app.Usage = "pipeline plugin"
+	app.Name = "Pipeline client"
+	app.Usage = "Pipeline client"
 	app.Action = run
 	app.Version = fmt.Sprintf("%s", version)
 	app.EnableBashCompletion = true
