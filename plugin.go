@@ -122,12 +122,12 @@ func (p *Plugin) Exec() error {
 	settingUpClusterId(&p.Config)
 
 	//if cluster exists
-	if p.Config.Cluster.State == "present" && clusterIsExists(&p.Config) == false {
+	if p.Config.Cluster.State == "present" && clusterExists(&p.Config) == false {
 		createCluster(&p.Config)
 	} else if p.Config.Cluster.State == "present" {
 		Infof("Cluster already present: %s", p.Config.Cluster.Name)
 		Infof("Your cluster id: %d", p.Config.Cluster.Id)
-	} else if p.Config.Cluster.State == "absent" && clusterIsExists(&p.Config) == true {
+	} else if p.Config.Cluster.State == "absent" && clusterExists(&p.Config) == true {
 		Infof("Your cluster id: %d", p.Config.Cluster.Id)
 		deleteCluster(&p.Config)
 	} else if  p.Config.Cluster.State == "absent" {
@@ -222,7 +222,7 @@ func createCluster(config *Config) bool {
 	return false
 }
 
-func clusterIsExists(config *Config) bool {
+func clusterExists(config *Config) bool {
 	if config.Cluster.Id > 0 {
 		return true
 	}
