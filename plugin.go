@@ -105,6 +105,9 @@ type (
 	}
 )
 
+const createdState = "created"
+const deletedState = "deleted"
+
 var validate *validator.Validate
 
 func (p *Plugin) Exec() error {
@@ -122,15 +125,15 @@ func (p *Plugin) Exec() error {
 	settingUpClusterId(&p.Config)
 
 	//if cluster exists
-	if p.Config.Cluster.State == "present" && clusterExists(&p.Config) == false {
+	if p.Config.Cluster.State == createdState && clusterExists(&p.Config) == false {
 		createCluster(&p.Config)
-	} else if p.Config.Cluster.State == "present" {
+	} else if p.Config.Cluster.State == createdState {
 		Infof("Cluster already present: %s", p.Config.Cluster.Name)
 		Infof("Your cluster id: %d", p.Config.Cluster.Id)
-	} else if p.Config.Cluster.State == "absent" && clusterExists(&p.Config) == true {
+	} else if p.Config.Cluster.State == deletedState && clusterExists(&p.Config) == true {
 		Infof("Your cluster id: %d", p.Config.Cluster.Id)
 		deleteCluster(&p.Config)
-	} else if  p.Config.Cluster.State == "absent" {
+	} else if  p.Config.Cluster.State == deletedState {
 		Infof("Cluster %s doesn't exists or already deleted, nothing to do ", p.Config.Cluster.Name)
 	}
 

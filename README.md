@@ -28,7 +28,7 @@ Pipeline REST API client plugin for Drone. A step in the Pipeline PaaS CI/CD com
         master_instance_type: m4.xlarge
 
         deployment_name: "zeppelin-k8s-charts"
-        deployment_stat: "present"
+        deployment_stat: "created"
 
 ## Test container/plugin with drone exec
 
