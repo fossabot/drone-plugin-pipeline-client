@@ -78,6 +78,11 @@ func main() {
 			EnvVar: "DRONE_REMOTE_URL",
 		},
 		cli.StringFlag{
+			Name:   "build.path",
+			Usage:  "workspace dir",
+			EnvVar: "PLUGIN_PATH,DRONE_WORKSPACE",
+		},
+		cli.StringFlag{
 			Name:   "commit.sha",
 			Usage:  "git commit sha",
 			EnvVar: "DRONE_COMMIT_SHA",
@@ -254,11 +259,11 @@ func main() {
 			EnvVar: "PLUGIN_NODE_MAX_COUNT",
 			Value:  1,
 		},
-		cli.Float64Flag{
+		cli.StringFlag{
 			Name:   "plugin.node.spotPrice",
 			Usage:  "Spot price",
 			EnvVar: "PLUGIN_NODE_SPOT_PRICE",
-			Value:  0,
+			Value:  "0",
 		},
 		cli.StringFlag{
 			Name:   "plugin.master.image",
@@ -274,6 +279,11 @@ func main() {
 			Name:   "plugin.deployment.name",
 			Usage:  "Specific deployment name",
 			EnvVar: "PLUGIN_DEPLOYMENT_NAME",
+		},
+		cli.StringFlag{
+			Name:   "plugin.deployment.release_name",
+			Usage:  "Specific deployment release name",
+			EnvVar: "PLUGIN_DEPLOYMENT_RELEASE_NAME",
 		},
 		cli.StringFlag{
 			Name:   "plugin.deployment.state",
@@ -316,6 +326,7 @@ func run(c *cli.Context) error {
 			Created:  int64(c.Int("build.created")),
 			Started:  int64(c.Int("build.started")),
 			Finished: int64(c.Int("build.finished")),
+			Path:     c.String("build.path"),
 			Link:     c.String("build.link"),
 		},
 		Commit: Commit{
@@ -344,15 +355,16 @@ func run(c *cli.Context) error {
 					InstanceType: c.String("plugin.node.instanceType"),
 					MinCount:     c.Int("plugin.node.minCount"),
 					MaxCount:     c.Int("plugin.node.maxCount"),
-					SpotPrice:    c.Float64("plugin.node.spotPrice"),
+					SpotPrice:    c.String("plugin.node.spotPrice"),
 				},
 				Master: Master{
 					Image:        c.String("plugin.master.image"),
 					InstanceType: c.String("plugin.master.instanceType"),
 				},
 				Deployment: Deployment{
-					Name:  c.String("plugin.deployment.name"),
-					State: c.String("plugin.deployment.state"),
+					Name:        c.String("plugin.deployment.name"),
+					State:       c.String("plugin.deployment.state"),
+					ReleaseName: c.String("plugin.deployment.release_name"),
 				},
 			},
 		},

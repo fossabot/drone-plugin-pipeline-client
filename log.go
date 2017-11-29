@@ -17,7 +17,7 @@ func init() {
 }
 
 func SetLogFormat(logFormat string) {
-	 if logFormat == "json" {
+	if logFormat == "json" {
 		log.SetFormatter(&log.JSONFormatter{})
 	} else {
 		if logFormat != "text" {

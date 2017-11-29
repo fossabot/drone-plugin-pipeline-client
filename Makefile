@@ -1,8 +1,8 @@
-EXECUTABLE ?= pipeline_client
+EXECUTABLE ?= pipeline-client
 IMAGE ?= banzaicloud/$(EXECUTABLE)
-COMMIT ?= $(shell git rev-parse --short HEAD)
+TAG ?= $(shell git describe --tags --abbrev=0)
 
-LD_FLAGS = -X "main.version=$(COMMIT)"
+LD_FLAGS = -X "main.version=$(TAG)"
 PACKAGES = $(shell go list ./... | grep -v /vendor/)
 
 .PHONY: _no-target-specified
@@ -16,6 +16,7 @@ list:
 all: clean deps fmt vet build
 
 clean:
+	rm -rf bin/*
 	go clean -i ./...
 
 deps:
@@ -28,15 +29,15 @@ vet:
 	go vet $(PACKAGES)
 
 docker:
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags '-s -w $(LD_FLAGS)' -o $(EXECUTABLE)
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags '-s -w $(LD_FLAGS)' -o bin/linux-amd64/$(EXECUTABLE)
 	docker build --rm -t $(IMAGE) .
-	docker tag $(IMAGE):latest $(IMAGE):$(COMMIT)
+	docker tag $(IMAGE):latest $(IMAGE):$(TAG)
 
 push:
 	docker push $(IMAGE):latest
-	docker push $(IMAGE):$(COMMIT)
+	docker push $(IMAGE):$(TAG)
 
 $(EXECUTABLE): $(wildcard *.go)
-	go build -ldflags '-s -w $(LD_FLAGS)' -o $(EXECUTABLE)
+	go build -ldflags '-s -w $(LD_FLAGS)' -o bin/$(EXECUTABLE)
 
 build: $(EXECUTABLE)
