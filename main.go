@@ -2,14 +2,30 @@ package main
 
 import (
 	"fmt"
+	. "github.com/banzaicloud/banzai-types/components"
+	"github.com/banzaicloud/banzai-types/components/amazon"
+	"github.com/banzaicloud/banzai-types/components/azure"
+	. "github.com/banzaicloud/banzai-types/utils"
 	"github.com/joho/godotenv"
 	"github.com/urfave/cli"
 	"os"
+	"strings"
 )
 
 var (
-	version string = ""
+	version             string = ""
+	defaultAmazonImage  string = "ami-294ffd50"
+	defaultInstanceType        = map[string]string{
+		"amazon": "m4.xlarge",
+		"azure":  "Standard_D2_v2",
+	}
+	defaultClusterLocation = map[string]string{
+		"amazon": "eu-west-1",
+		"azure":  "westeurope",
+	}
 )
+
+const LOGTAG = "plugin"
 
 func main() {
 
@@ -235,45 +251,62 @@ func main() {
 			Name:   "plugin.cluster.state",
 			Usage:  "K8S cluster desire state",
 			EnvVar: "PLUGIN_CLUSTER_STATE",
-			Value:  "present",
+			Value:  "created",
 		},
 		cli.StringFlag{
-			Name:   "plugin.node.image",
+			Name:   "plugin.cluster.provider",
+			Usage:  "K8S cluster provider",
+			EnvVar: "PLUGIN_CLUSTER_PROVIDER",
+			Value:  "amazon",
+		},
+		cli.StringFlag{
+			Name:   "plugin.azure.resource_group",
+			Usage:  "Azure resource group name",
+			EnvVar: "PLUGIN_AZURE_RESOURCE_GROUP",
+		},
+		cli.StringFlag{
+			Name:   "plugin.azure.kubernetes_version",
+			Usage:  "Azure kubernetes version",
+			EnvVar: "PLUGIN_AZURE_KUBERNETES_VERSION",
+			Value:  "1.8.1",
+		},
+		cli.StringFlag{
+			Name:   "plugin.amazon.node.image",
 			Usage:  "Amazon machine image id",
-			EnvVar: "PLUGIN_NODE_IMAGE",
+			EnvVar: "PLUGIN_AMAZON_NODE_IMAGE",
 		},
 		cli.StringFlag{
-			Name:   "plugin.node.instanceType",
-			Usage:  "EC2 instance type",
-			EnvVar: "PLUGIN_NODE_INSTANCE_TYPE",
+			Name:   "plugin.amazon.node.instanceType",
+			Usage:  "Azure instance type",
+			EnvVar: "PLUGIN_AMAZON_NODE_INSTANCE_TYPE",
 		},
 		cli.IntFlag{
-			Name:   "plugin.node.minCount",
+			Name:   "plugin.amazon.node.minCount",
 			Usage:  "Minimum number of node",
-			EnvVar: "PLUGIN_NODE_MIN_COUNT",
+			EnvVar: "PLUGIN_AMAZON_NODE_MIN_COUNT",
 			Value:  1,
 		},
 		cli.IntFlag{
-			Name:   "plugin.node.maxCount",
+			Name:   "plugin.amazon.node.maxCount",
 			Usage:  "Maximum number of node",
-			EnvVar: "PLUGIN_NODE_MAX_COUNT",
+			EnvVar: "PLUGIN_AMAZON_NODE_MAX_COUNT",
 			Value:  1,
 		},
 		cli.StringFlag{
-			Name:   "plugin.node.spotPrice",
+			Name:   "plugin.amazon.node.spotPrice",
 			Usage:  "Spot price",
-			EnvVar: "PLUGIN_NODE_SPOT_PRICE",
+			EnvVar: "PLUGIN_AMAZON_NODE_SPOT_PRICE",
 			Value:  "0",
 		},
 		cli.StringFlag{
-			Name:   "plugin.master.image",
+			Name:   "plugin.amazon master.image",
 			Usage:  "Amazon machine image id",
-			EnvVar: "PLUGIN_MASTER_IMAGE",
+			EnvVar: "PLUGIN_AMAZON_MASTER_IMAGE",
 		},
 		cli.StringFlag{
 			Name:   "plugin.master.instanceType",
 			Usage:  "EC2 instance type",
-			EnvVar: "PLUGIN_MASTER_INSTANCE_TYPE",
+			EnvVar: "PLUGIN_AMAZON_MASTER_INSTANCE_TYPE",
 		},
 		cli.StringFlag{
 			Name:   "plugin.deployment.name",
@@ -284,17 +317,18 @@ func main() {
 			Name:   "plugin.deployment.release_name",
 			Usage:  "Specific deployment release name",
 			EnvVar: "PLUGIN_DEPLOYMENT_RELEASE_NAME",
+			Value:  "default",
 		},
 		cli.StringFlag{
 			Name:   "plugin.deployment.state",
 			Usage:  "Specific deployment state",
 			EnvVar: "PLUGIN_DEPLOYMENT_STATE",
 		},
-
 		cli.StringFlag{
 			Name:   "plugin.log.level",
 			Usage:  "Specific log level (debug,info,warn)",
 			EnvVar: "PLUGIN_LOG_LEVEL",
+			Value:  "info",
 		},
 		cli.StringFlag{
 			Name:   "plugin.log.format",
@@ -306,7 +340,43 @@ func main() {
 	app.Run(os.Args)
 }
 
+func settingUpDefaults(c *cli.Context) {
+
+	if c.String("plugin.node.instanceType") == "" {
+		c.Set("plugin.node.instanceType", defaultInstanceType[c.String("plugin.cluster.provider")])
+	}
+
+	if c.String("plugin.amazon.master.instanceType") == "" {
+		c.Set("plugin.amazon.master.instanceType", defaultInstanceType[c.String("plugin.cluster.provider")])
+	}
+
+	if c.String("plugin.cluster.location") == "" {
+		c.Set("plugin.cluster.location", defaultClusterLocation[c.String("plugin.cluster.provider")])
+	}
+}
+
 func run(c *cli.Context) error {
+
+	excludeVars := map[string]bool{
+		"PLUGIN_ENDPOINT": true,
+		"PLUGIN_USERNAME": true,
+		"PLUGIN_PASSWORD": true,
+	}
+
+	items := map[string]string{}
+	for _, element := range os.Environ() {
+		variable := strings.Split(element, "=")
+
+		if strings.Contains(variable[0], "PLUGIN") && !excludeVars[variable[0]] {
+			items[variable[0]] = variable[1]
+		}
+	}
+
+	if _, err := os.Stat(".env"); os.IsNotExist(err) {
+		_ = godotenv.Write(items, ".env")
+	}
+
+	settingUpDefaults(c)
 
 	plugin := Plugin{
 		Repo: Repo{
@@ -346,36 +416,54 @@ func run(c *cli.Context) error {
 			Endpoint: c.String("plugin.endpoint"),
 			Username: c.String("plugin.username"),
 			Password: c.String("plugin.password"),
-			Cluster: Cluster{
-				Name:     c.String("plugin.cluster.name"),
-				Location: c.String("plugin.cluster.location"),
-				State:    c.String("plugin.cluster.state"),
-				Node: Node{
-					Image:        c.String("plugin.node.image"),
-					InstanceType: c.String("plugin.node.instanceType"),
-					MinCount:     c.Int("plugin.node.minCount"),
-					MaxCount:     c.Int("plugin.node.maxCount"),
-					SpotPrice:    c.String("plugin.node.spotPrice"),
+
+			Cluster: &CustomCluster{
+				CreateClusterRequest: &CreateClusterRequest{
+					Name:             c.String("plugin.cluster.name"),
+					Location:         c.String("plugin.cluster.location"),
+					Cloud:            c.String("plugin.cluster.provider"),
+					NodeInstanceType: c.String("plugin.node.instanceType"),
+					Properties: struct {
+						CreateClusterAmazon *amazon.CreateClusterAmazon `json:"amazon,omitempty"`
+						CreateClusterAzure  *azure.CreateClusterAzure   `json:"azure,omitempty"`
+					}{
+						CreateClusterAmazon: &amazon.CreateClusterAmazon{
+							Node: &amazon.CreateAmazonNode{
+								SpotPrice: c.String("plugin.amazon.node.spotPrice"),
+								MinCount:  c.Int("plugin.amazon.node.minCount"),
+								MaxCount:  c.Int("plugin.amazon.node.maxCount"),
+								Image:     c.String("plugin.amazon.node.image"),
+							},
+							Master: &amazon.CreateAmazonMaster{
+								InstanceType: c.String("plugin.amazon.master.instanceType"),
+								Image:        c.String("plugin.amazon.master.image"),
+							},
+						},
+						CreateClusterAzure: &azure.CreateClusterAzure{
+							Node: &azure.CreateAzureNode{
+								ResourceGroup:     "baluchicken",
+								AgentCount:        1,
+								AgentName:         "gabo",
+								KubernetesVersion: "1.8.1",
+							},
+						},
+					},
 				},
-				Master: Master{
-					Image:        c.String("plugin.master.image"),
-					InstanceType: c.String("plugin.master.instanceType"),
-				},
-				Deployment: Deployment{
-					Name:        c.String("plugin.deployment.name"),
-					State:       c.String("plugin.deployment.state"),
-					ReleaseName: c.String("plugin.deployment.release_name"),
-				},
+				State: c.String("plugin.cluster.state"),
+			},
+			Deployment: &Deployment{
+				Name:        c.String("plugin.deployment.name"),
+				ReleaseName: c.String("plugin.deployment.state"),
+				State:       c.String("plugin.deployment.release_name"),
 			},
 		},
 	}
 
 	SetLogLevel(c.String("plugin.log.level"))
-	SetLogFormat(c.String("plugin.log.format"))
 
 	err := plugin.Exec()
 	if err != nil {
-		Fatal(err)
+		LogFatal(LOGTAG, err)
 	}
 	return nil
 }

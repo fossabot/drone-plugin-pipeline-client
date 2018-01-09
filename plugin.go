@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	. "github.com/banzaicloud/banzai-types/components"
+	. "github.com/banzaicloud/banzai-types/utils"
 	"gopkg.in/go-playground/validator.v9"
 	"io"
 	"io/ioutil"
@@ -12,7 +15,6 @@ import (
 	"net/http/httputil"
 	"os"
 	"time"
-	"errors"
 )
 
 type (
@@ -62,32 +64,16 @@ type (
 	}
 
 	Config struct {
-		Cluster  Cluster
-		Username string
-		Password string
-		Endpoint string
+		Cluster    *CustomCluster
+		Deployment *Deployment
+		Username   string
+		Password   string
+		Endpoint   string
 	}
 
-	Cluster struct {
-		Name       string     `json:"name" validate:"required"`
-		Location   string     `json:"location" validate:"required"`
-		State      string     `json:"-" validate:"required"`
-		Node       Node       `json:"node"`
-		Master     Master     `json:"master"`
-		Deployment Deployment `json:"deployment,omitempty"`
-	}
-
-	Master struct {
-		Image        string `validate:"required"`
-		InstanceType string `validate:"required"`
-	}
-
-	Node struct {
-		Image        string  `json:"image" validate:"required"`
-		InstanceType string  `json:"instanceType" validate:"required"`
-		MinCount     int     `json:"minCount" validate:"required,gt=0"`
-		MaxCount     int     `json:"maxCount" validate:"required,gt=0"`
-		SpotPrice    string  `json:"spotPrice,omitempty"`
+	CustomCluster struct {
+		*CreateClusterRequest
+		State string
 	}
 
 	Deployment struct {
@@ -115,28 +101,28 @@ func (p *Plugin) Exec() error {
 	err := validate.Struct(p)
 	if err != nil {
 		for _, v := range err.(validator.ValidationErrors) {
-			Errorf("[%s] field validation error (%+v)", v.Field(), v)
+			LogErrorf(LOGTAG, "[%s] field validation error (%+v)", v.Field(), v)
 		}
 		return errors.New("Validation error(s)")
 	}
 
-	Infof("Cluster desired state: %s", p.Config.Cluster.State)
+	LogInfof(LOGTAG, "Cluster desired state: %s", p.Config.Cluster.State)
 
 	if p.Config.Cluster.State == createdState && !clusterIsExists(&p.Config) {
 		result, err := createCluster(&p.Config)
 
 		if !result {
-			Fatal("Failed: ", err)
+			LogFatalf(LOGTAG, "Failed: %s", err)
 			os.Exit(1)
 		}
 
 		for ok := true; ok; ok = !clusterIsExists(&p.Config) {
 			ok = !clusterIsExists(&p.Config)
-			Info("Waiting...")
+			LogInfo(LOGTAG, "Waiting...")
 			time.Sleep(5 * time.Second)
 		}
 	} else if p.Config.Cluster.State == createdState {
-		Info("Use existing cluster, nothing to do")
+		LogInfo(LOGTAG, "Use existing cluster, nothing to do")
 	} else if p.Config.Cluster.State == deletedState && clusterIsExists(&p.Config) {
 		deleteCluster(&p.Config)
 		return nil
@@ -150,21 +136,21 @@ func (p *Plugin) Exec() error {
 
 	for ok := true; ok; ok = !helmIsReady(&p.Config) {
 		ok = !helmIsReady(&p.Config)
-		Info("Waiting helm ...")
+		LogInfo(LOGTAG, "Waiting helm ...")
 		time.Sleep(5 * time.Second)
 	}
 
-	if p.Config.Cluster.State == createdState && p.Config.Cluster.Deployment.State == createdState && !deploymentIsExists(&p.Config) {
+	if p.Config.Cluster.State == createdState && p.Config.Deployment.State == createdState && !deploymentIsExists(&p.Config) {
 		installDeployment(&p.Config)
 
 		for ok := true; ok; ok = !deploymentIsExists(&p.Config) {
 			ok = !deploymentIsExists(&p.Config)
-			Info("Waiting deployment ...")
+			LogInfo(LOGTAG, "Waiting deployment ...")
 			time.Sleep(5 * time.Second)
 		}
-	} else if p.Config.Cluster.Deployment.State == createdState {
-		Infof("Use existing deployment, nothing to do")
-	} else if p.Config.Cluster.Deployment.State == deletedState && deploymentIsExists(&p.Config) {
+	} else if p.Config.Deployment.State == createdState {
+		LogInfof(LOGTAG, "Use existing deployment, nothing to do")
+	} else if p.Config.Deployment.State == deletedState && deploymentIsExists(&p.Config) {
 		deleteDeployment(&p.Config)
 	}
 
@@ -179,7 +165,7 @@ func apiCall(url string, method string, username string, password string, body i
 	}
 
 	if err != nil {
-		Fatalf("failed to build http request: %v", err)
+		LogFatalf(LOGTAG, "failed to build http request: %v", err)
 	}
 
 	req.SetBasicAuth(username, password)
@@ -188,50 +174,51 @@ func apiCall(url string, method string, username string, password string, body i
 	resp, err := http.DefaultClient.Do(req)
 
 	if err != nil {
-		Fatalf("failed to call \"%s\" on %s: %+v", method, url, err)
+		LogFatalf(LOGTAG, "failed to call \"%s\" on %s: %+v", method, url, err)
 	}
 
 	debugReq, _ := httputil.DumpRequest(req, true)
-	Debugf("Request %s", debugReq)
+	LogDebugf(LOGTAG, "Request %s", debugReq)
 	debugResp, _ := httputil.DumpResponse(resp, true)
-	Debugf("Response %s", debugResp)
+	LogDebugf(LOGTAG, "Response %s", debugResp)
 
 	defer resp.Body.Close()
 	return resp
 }
 
 func deleteCluster(config *Config) bool {
-	Infof("Trying to delete %s cluster\n", config.Cluster.Name)
+	LogInfof(LOGTAG, "Trying to delete %s cluster\n", config.Cluster.Name)
 
 	url := fmt.Sprintf("%s/clusters/%s?field=name", config.Endpoint, config.Cluster.Name)
 	resp := apiCall(url, "DELETE", config.Username, config.Password, nil)
 
 	if resp.StatusCode == 201 {
-		Infof("Cluster will be deleted")
+		LogInfof(LOGTAG, "Cluster will be deleted")
 		return true
 	}
 
 	if resp.StatusCode == 404 {
-		Errorf("Unable to delete cluster")
+		LogErrorf(LOGTAG, "Unable to delete cluster")
 		return false
 	}
 
-	Fatalf("Unexpected error %+v", resp)
+	LogFatalf(LOGTAG, "Unexpected error %+v", resp)
 	return false
 }
 
 func createCluster(config *Config) (bool, string) {
 
-	Infof("Trying create %s cluster", config.Cluster.Name)
+	LogInfof(LOGTAG, "Trying create %s cluster", config.Cluster.Name)
 
 	url := fmt.Sprintf("%s/clusters", config.Endpoint)
 	param, _ := json.Marshal(config.Cluster)
 	resp := apiCall(url, "POST", config.Username, config.Password, bytes.NewBuffer(param))
 
 	if resp.StatusCode == 201 {
-		Infof("Cluster (%s) will be created", config.Cluster.Name)
+		LogInfof(LOGTAG, "Cluster (%s) will be created", config.Cluster.Name)
 		return true, ""
 	} else if resp.StatusCode == 400 {
+
 		err := fmt.Sprintf("Cluster name already exists")
 		return false, err
 	}
@@ -247,29 +234,29 @@ func helmIsReady(config *Config) bool {
 	if resp.StatusCode == 200 {
 		return true
 	} else if resp.StatusCode == 503 {
-		Infof("Deployment not found.")
+		LogInfo(LOGTAG, "Helm not ready.")
 		return false
 	}
 
-	Fatalf("Unexpected error %+v", resp)
+	LogFatalf(LOGTAG, "Unexpected error %+v", resp)
 	return false
 }
 
 func deploymentIsExists(config *Config) bool {
-	url := fmt.Sprintf("%s/clusters/%s/deployments/%s?field=name", config.Endpoint, config.Cluster.Name, config.Cluster.Deployment.ReleaseName)
+	url := fmt.Sprintf("%s/clusters/%s/deployments/%s?field=name", config.Endpoint, config.Cluster.Name, config.Deployment.ReleaseName)
 	resp := apiCall(url, "HEAD", config.Username, config.Password, nil)
 
 	if resp.StatusCode == 200 {
 		return true
 	} else if resp.StatusCode == 404 {
-		Infof("Deployment not found.")
+		LogInfof(LOGTAG, "Deployment not found.")
 		return false
 	} else if resp.StatusCode == 204 {
-		Infof("Deployment isn't ready yet.")
+		LogInfof(LOGTAG, "Deployment isn't ready yet.")
 		return false
 	}
 
-	Fatalf("Unexpected error %+v", resp)
+	LogFatalf(LOGTAG, "Unexpected error %+v", resp)
 	return false
 }
 
@@ -280,14 +267,14 @@ func clusterIsExists(config *Config) bool {
 	if resp.StatusCode == 200 {
 		return true
 	} else if resp.StatusCode == 404 {
-		Infof("Cluster not found.")
+		LogInfo(LOGTAG, "Cluster not found.")
 		return false
 	} else if resp.StatusCode == 204 {
-		Infof("Cluster isn't alive yet.")
+		LogInfo(LOGTAG, "Cluster isn't alive yet.")
 		return false
 	}
 
-	Fatalf("Unexpected error %+v", resp)
+	LogFatalf(LOGTAG, "Unexpected error %+v", resp)
 	return false
 }
 
@@ -306,73 +293,73 @@ func dumpClusterConfig(plugin *Plugin) bool {
 		err := json.NewDecoder(resp.Body).Decode(&result)
 
 		if err != nil {
-			Fatalf("Json parse error %s", err)
+			LogFatalf(LOGTAG, "Json parse error %s", err)
 			return false
 		}
 
 		data, err := base64.StdEncoding.DecodeString(result.Config)
 
 		if err != nil {
-			Fatalf("Decoding error %s", err)
+			LogFatalf(LOGTAG, "Decoding error %s", err)
 			return false
 		}
 
 		err = os.MkdirAll(build.Path+"/.kube/", 0755)
 
 		if err != nil {
-			Fatalf("Unable to create .kube dir: %s", err)
+			LogFatalf(LOGTAG, "Unable to create .kube dir: %s", err)
 			return false
 		}
 
 		err = ioutil.WriteFile(build.Path+"/.kube/config", data, 0666)
 
 		if err != nil {
-			Fatalf("File write error: %s", err)
+			LogFatalf(LOGTAG, "File write error: %s", err)
 			return false
 		}
 
-		Debugf("export KUBECONFIG=%s", build.Path+"/.kube/config")
-		Infof("Write .kube/config to workspace")
+		LogDebugf(LOGTAG, "export KUBECONFIG=%s", build.Path+"/.kube/config")
+		LogInfo(LOGTAG, "Write .kube/config to workspace")
 
 		return true
 	}
 
-	Fatalf("Unexpected error %+v", resp)
+	LogFatalf(LOGTAG, "Unexpected error %+v", resp)
 	return false
 }
 
 func installDeployment(config *Config) bool {
 
-	Infof("Install %s deployment", config.Cluster.Deployment.Name)
+	LogInfof(LOGTAG, "Install %s deployment", config.Deployment.Name)
 
 	url := fmt.Sprintf("%s/clusters/%s/deployments?field=name", config.Endpoint, config.Cluster.Name)
-	param, _ := json.Marshal(config.Cluster.Deployment)
+	param, _ := json.Marshal(config.Deployment)
 
 	resp := apiCall(url, "POST", config.Username, config.Password, bytes.NewBuffer(param))
 
 	if resp.StatusCode == 201 {
-		Infof("Deployment (%s) will be installed", config.Cluster.Deployment.Name)
+		LogInfof(LOGTAG, "Deployment (%s) will be installed", config.Cluster.Name)
 		return true
 	}
 
-	Fatalf("Unexpected error %+v", resp)
+	LogFatalf(LOGTAG, "Unexpected error %+v", resp)
 	return false
 }
 
 func deleteDeployment(config *Config) bool {
 
-	Infof("Delete %s deployment", config.Cluster.Deployment.Name)
+	LogInfof(LOGTAG, "Delete %s deployment", config.Deployment.Name)
 
-	url := fmt.Sprintf("%s/clusters/%s/deployments/%s?field=name", config.Endpoint, config.Cluster.Name, config.Cluster.Deployment.ReleaseName)
-	param, _ := json.Marshal(config.Cluster.Deployment)
+	url := fmt.Sprintf("%s/clusters/%s/deployments/%s?field=name", config.Endpoint, config.Cluster.Name, config.Deployment.ReleaseName)
+	param, _ := json.Marshal(config.Deployment)
 
 	resp := apiCall(url, "DELETE", config.Username, config.Password, bytes.NewBuffer(param))
 
 	if resp.StatusCode == 200 {
-		Infof("Deployment (%s) will be deleted", config.Cluster.Deployment.Name)
+		LogInfof(LOGTAG, "Deployment (%s) will be deleted", config.Deployment.Name)
 		return true
 	}
 
-	Fatalf("Unexpected error %+v", resp)
+	LogFatalf(LOGTAG, "Unexpected error %+v", resp)
 	return false
 }
