@@ -77,9 +77,9 @@ type (
 	}
 
 	Deployment struct {
-		Name        string `json:"name" validate:"required"`
-		ReleaseName string `json:"releasename" validate:"required"`
-		State       string `json:"state" validate:"required"`
+		Name        string `json:"name"`
+		ReleaseName string `json:"releasename"`
+		State       string `json:"state"`
 	}
 )
 
@@ -136,20 +136,24 @@ func (p *Plugin) Exec() error {
 
 	for ok := true; ok; ok = !helmIsReady(&p.Config) {
 		ok = !helmIsReady(&p.Config)
-		LogInfo(LOGTAG, "Waiting helm ...")
-		time.Sleep(5 * time.Second)
+		if ok {
+			LogInfo(LOGTAG, "Waiting helm ...")
+			time.Sleep(5 * time.Second)
+		}
 	}
-
-	if p.Config.Cluster.State == createdState && p.Config.Deployment.State == createdState && !deploymentIsExists(&p.Config) {
+	LogDebugf("s", "", p.Config.Deployment.State)
+	if p.Config.Deployment.State == createdState && !deploymentIsExists(&p.Config) {
 		installDeployment(&p.Config)
 
 		for ok := true; ok; ok = !deploymentIsExists(&p.Config) {
 			ok = !deploymentIsExists(&p.Config)
-			LogInfo(LOGTAG, "Waiting deployment ...")
-			time.Sleep(5 * time.Second)
+			if ok {
+				LogInfo(LOGTAG, "Waiting deployment ...")
+				time.Sleep(5 * time.Second)
+			}
 		}
 	} else if p.Config.Deployment.State == createdState {
-		LogInfof(LOGTAG, "Use existing deployment, nothing to do")
+		LogInfo(LOGTAG, "Use existing deployment, nothing to do")
 	} else if p.Config.Deployment.State == deletedState && deploymentIsExists(&p.Config) {
 		deleteDeployment(&p.Config)
 	}
@@ -193,12 +197,12 @@ func deleteCluster(config *Config) bool {
 	resp := apiCall(url, "DELETE", config.Username, config.Password, nil)
 
 	if resp.StatusCode == 201 {
-		LogInfof(LOGTAG, "Cluster will be deleted")
+		LogInfo(LOGTAG, "Cluster will be deleted")
 		return true
 	}
 
 	if resp.StatusCode == 404 {
-		LogErrorf(LOGTAG, "Unable to delete cluster")
+		LogError(LOGTAG, "Unable to delete cluster")
 		return false
 	}
 
@@ -249,10 +253,10 @@ func deploymentIsExists(config *Config) bool {
 	if resp.StatusCode == 200 {
 		return true
 	} else if resp.StatusCode == 404 {
-		LogInfof(LOGTAG, "Deployment not found.")
+		LogInfo(LOGTAG, "Deployment not found.")
 		return false
 	} else if resp.StatusCode == 204 {
-		LogInfof(LOGTAG, "Deployment isn't ready yet.")
+		LogInfo(LOGTAG, "Deployment isn't ready yet.")
 		return false
 	}
 
@@ -338,7 +342,7 @@ func installDeployment(config *Config) bool {
 	resp := apiCall(url, "POST", config.Username, config.Password, bytes.NewBuffer(param))
 
 	if resp.StatusCode == 201 {
-		LogInfof(LOGTAG, "Deployment (%s) will be installed", config.Cluster.Name)
+		LogInfof(LOGTAG, "Deployment (%s) will be installed", config.Deployment.Name)
 		return true
 	}
 

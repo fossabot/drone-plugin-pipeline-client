@@ -5,9 +5,7 @@ TAG ?= $(shell git describe --tags --abbrev=0)
 LD_FLAGS = -X "main.version=$(TAG)"
 PACKAGES = $(shell go list ./... | grep -v /vendor/)
 
-.PHONY: _no-target-specified
-_no-target-specified:
-	$(error Please specify the target to make - `make list` shows targets.)
+.DEFAULT_GOAL := list
 
 .PHONY: list
 list:
