@@ -273,7 +273,7 @@ func main() {
 			Name:   "plugin.azure.kubernetes_version",
 			Usage:  "Azure kubernetes version",
 			EnvVar: "PLUGIN_AZURE_KUBERNETES_VERSION",
-			Value:  "1.8.1",
+			Value:  "1.8.2",
 		},
 		cli.StringFlag{
 			Name:   "plugin.azure.agent_name",
