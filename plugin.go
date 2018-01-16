@@ -142,20 +142,22 @@ func (p *Plugin) Exec() error {
 		}
 	}
 	LogDebugf("s", "", p.Config.Deployment.State)
-	if p.Config.Deployment.State == createdState && !deploymentIsExists(&p.Config) {
-		installDeployment(&p.Config)
+	if p.Config.Deployment.Name != "" {
+		if p.Config.Deployment.State == createdState && !deploymentIsExists(&p.Config) {
+			installDeployment(&p.Config)
 
-		for ok := true; ok; ok = !deploymentIsExists(&p.Config) {
-			ok = !deploymentIsExists(&p.Config)
-			if ok {
-				LogInfo(LOGTAG, "Waiting deployment ...")
-				time.Sleep(5 * time.Second)
+			for ok := true; ok; ok = !deploymentIsExists(&p.Config) {
+				ok = !deploymentIsExists(&p.Config)
+				if ok {
+					LogInfo(LOGTAG, "Waiting deployment ...")
+					time.Sleep(5 * time.Second)
+				}
 			}
+		} else if p.Config.Deployment.State == createdState {
+			LogInfo(LOGTAG, "Use existing deployment, nothing to do")
+		} else if p.Config.Deployment.State == deletedState && deploymentIsExists(&p.Config) {
+			deleteDeployment(&p.Config)
 		}
-	} else if p.Config.Deployment.State == createdState {
-		LogInfo(LOGTAG, "Use existing deployment, nothing to do")
-	} else if p.Config.Deployment.State == deletedState && deploymentIsExists(&p.Config) {
-		deleteDeployment(&p.Config)
 	}
 
 	return nil
