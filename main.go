@@ -16,7 +16,7 @@ var (
 	version             string = ""
 	defaultAmazonImage  string = "ami-06d1667f"
 	defaultInstanceType        = map[string]string{
-		"amazon": "m4.xlarge", // 4 vCPU, 16 GB RAM, General Purpose
+		"amazon": "m4.xlarge",       // 4 vCPU, 16 GB RAM, General Purpose
 		"azure":  "Standard_D4s_v3", // 4 vCPU, 16 GB RAM, General Purpose
 	}
 	defaultClusterLocation = map[string]string{
