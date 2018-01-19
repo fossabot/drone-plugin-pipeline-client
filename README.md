@@ -15,21 +15,23 @@ Pipeline REST API client plugin for Drone. A step in the Pipeline PaaS CI/CD com
 
 
 
-### Create or use existing cluster example (Amazon)
+### Create or use existing cluster (Amazon)
 
     pipeline:
+      create_cluster:
         cluster_name: "demo-cluster1"
         image: banzaicloud/pipeline_client:latest
         secrets: [ plugin_endpoint, plugin_username, plugin_password]
 
-### Create or use existing cluster example (Azure)
+### Create or use existing cluster (Azure)
     pipeline:
+      create_cluster:
         cluster_name: "demo-cluster1"
         cluster_provider: azure
         image: banzaicloud/pipeline_client:latest
         secrets: [ plugin_endpoint, plugin_username, plugin_password]
 
-### Global options
+### Main options
 
 | Option           | Description             | Default  | Required |
 | -------------    | ----------------------- | --------:| --------:|
@@ -49,8 +51,14 @@ Pipeline REST API client plugin for Drone. A step in the Pipeline PaaS CI/CD com
 | amazon_node_instance_type   | Specified Instance type for node | "m4.xlarge"   | No       |
 | amazon_node_min_count       | Specified node count | 1   | No       |
 | amazon_node_min_count       | Specified node count | 1   | No       |
-| amazon_node_spot_price      | Specified spot proci | 0 (no sport)   | No       |
+| amazon_node_spot_price      | Specified spot price | 0 (normal instance)   | No       |
 
+#### Azure
+| Option                      | Description              | Default  | Required |
+| -------------               | -----------------------  | --------:| --------:|
+| azure_resource_group        | Created azure resource group | ""       | Yes     |
+| azure_kubernetes_version    | Desired Kubernetes version   | "1.8.2"  | No      |
+| azure_agent_name            | Azure agent name   | ""       | No      |
 ##
 ## Test container/plugin with docker
 
