@@ -11,8 +11,15 @@ Pipeline REST API client plugin for Drone. A step in the Pipeline PaaS CI/CD com
 
 [banzaicloud/pipeline_client](https://hub.docker.com/r/banzaicloud/plugin-pipeline-client/)    
 
-#### Specified required secrets
+#### Specify required secrets
 
+Provide valid credentials for the pipeline API.
+
+These options needs to be specified in the CI/CD GUI.
+
+* endpoint: http://[control-plane-host]/pipeline/api/v1
+* username: Specified pipeline username
+* password: Specified pipeline password
 
 
 ### Create or use existing cluster (Amazon)
@@ -21,7 +28,7 @@ Pipeline REST API client plugin for Drone. A step in the Pipeline PaaS CI/CD com
       create_cluster:
         cluster_name: "demo-cluster1"
         image: banzaicloud/pipeline_client:latest
-        secrets: [ plugin_endpoint, plugin_username, plugin_password]
+        secrets: [ endpoint, username, password]
 
 ### Create or use existing cluster (Azure)
     pipeline:
@@ -29,7 +36,7 @@ Pipeline REST API client plugin for Drone. A step in the Pipeline PaaS CI/CD com
         cluster_name: "demo-cluster1"
         cluster_provider: azure
         image: banzaicloud/pipeline_client:latest
-        secrets: [ plugin_endpoint, plugin_username, plugin_password]
+        secrets: [ endpoint, username, password]
 
 ### Main options
 
