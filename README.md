@@ -22,7 +22,7 @@ These options needs to be specified in the CI/CD [GUI](https://github.com/banzai
         image: banzaicloud/pipeline_client:latest
         secrets: [ endpoint, username, password]
 
-### Create or use existing cluster (Azure)
+### Create or use existing cluster (Azure(AKS))
     pipeline:
       create_cluster:
         cluster_name: "demo-cluster1"

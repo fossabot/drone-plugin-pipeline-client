@@ -37,13 +37,3 @@
     ...
         log_level: info # optional
         log_format: text # optional
-        
-## For developers
-### Use .env file (example)
-
-    cp .env.example .env
-    source .env
-
-### Test with `go run`
-
-    go run -ldflags "-X main.version=1.0" main.go plugin.go log.go --plugin.log.level debug --plugin.log.format text
