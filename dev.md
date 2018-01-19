@@ -1,15 +1,13 @@
 ## Pipeline API client plugin for Drone (Developer Guide)
+
 ## Test container/plugin with docker
 
 ## Build new docker image
     make docker
 
-### Use example .env file and fill require vars
+### Use example .env file and fill required vars
     cp .env.example .env
     docker run -env-file .env --rm -it banzaicloud/pipeline_client:latest
-
-
-
 
     pipeline:
     ...
