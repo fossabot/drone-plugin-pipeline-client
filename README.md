@@ -1,50 +1,65 @@
 
 ## Pipeline API client plugin for Drone
 
-Pipeline REST API client plugin for Drone. A step in the Pipeline PaaS CI/CD component to provision a Kubernetes cluster or use a managed one.
+Pipeline REST API client plugin for Drone. A step in the Pipeline PaaS CI/CD component to provision a Kubernetes cluster or use a managed one. Currently two cloud provider supported Amazon and Azure(AKS).
 
-### Example drone config
+#### Specify required secrets
 
-.drone.yml
+Provide valid credentials for the pipeline API.
+
+These options needs to be specified in the CI/CD [GUI](https://github.com/banzaicloud/pipeline/blob/master/docs/pipeline-howto.md#cicd-secrets).
+
+* endpoint: http://[control-plane-host]/pipeline/api/v1
+* username: Specified pipeline username
+* password: Specified pipeline password
+
+
+### Create or use existing cluster (Amazon)
 
     pipeline:
-      cluster:
-        image: banzaicloud/pipeline_client:latest
-
-        endpoint: http://[your-host-name-or-ip]/pipeline/api/v1
-        username: admin
-        password: *****
-        log_level: info
-        log_format: text
-
+      create_cluster:
         cluster_name: "demo-cluster1"
-        cluster_location: "eu-west-1"
-        cluster_state: "created"
+        image: banzaicloud/pipeline_client:latest
+        secrets: [ endpoint, username, password]
 
-        node_image: ami-294ffd50
-        node_instance_type: m4.xlarge
+### Create or use existing cluster (Azure(AKS))
+    pipeline:
+      create_cluster:
+        cluster_name: "demo-cluster1"
+        cluster_provider: azure
+        image: banzaicloud/pipeline_client:latest
+        secrets: [ endpoint, username, password]
 
-        master_image: ami-294ffd50
-        master_instance_type: m4.xlarge
+### Main options
 
-        deployment_name: ""
-        deployment_release_name: ""
-        deployment_state: "created"
+| Option           | Description             | Default  | Required |
+| -------------    | ----------------------- | --------:| --------:|
+| cluster_name     | Specified cluster name  | ""       | Yes      |
+| cluster_provider | Specified supporter provider (`amazon`, `azure`) | amazon   | No       |
+| log_level        | Specified log level (`info`, `warning`,`error`, `critical`) | info   | No       |
+| log_format       | Specified log format (`json`, `text`) | json   | No       |
 
-## Test container/plugin with drone exec
+### Provider specific options
+#### Amazon
+| Option                      | Description              | Default  | Required |
+| -------------               | -----------------------  | --------:| --------:|
+| amazon_node_type            | Specified cluster name   | ""       | Yes      |
+| amazon_master_image         | Specified Image for master node  | ami-06d1667f| No       |
+| amazon_master_instance_type | Specified instance type for master node | "m4.xlarge"   | No       |
+| amazon_node_image           | Specified Image for node | ami-06d1667f| No       |
+| amazon_node_instance_type   | Specified Instance type for node | "m4.xlarge"   | No       |
+| amazon_node_min_count       | Specified node count | 1   | No       |
+| amazon_node_min_count       | Specified node count | 1   | No       |
+| amazon_node_spot_price      | Specified spot price | 0 (normal instance)   | No       |
 
-    drone exec --repo-name hello-world --workspace-path drone-test .drone.yml
-    
-## Build new docker image
+In case of Azure a resource group has to be used. Use the Azure CLI to create Azure Resource Group:
+https://docs.microsoft.com/en-us/azure/azure-resource-manager/xplat-cli-azure-resource-manager
 
-    make docker
+#### Azure (AKS)
+| Option                      | Description              | Default  | Required |
+| -------------               | -----------------------  | --------:| --------:|
+| azure_resource_group        | Created azure resource group | ""       | Yes     |
+| azure_kubernetes_version    | Desired Kubernetes version   | "1.8.2"  | No      |
+| azure_agent_name            | Azure agent name             | ""       | No      |
 
-## For developers
-### Use .env file (example)
-
-    cp .env.example .env
-    source .env
-
-### Test with `go run`
-
-    go run -ldflags "-X main.version=1.0" main.go plugin.go log.go --plugin.log.level debug --plugin.log.format text
+Are you a developer? Click [here](dev.md)
