@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	. "github.com/banzaicloud/banzai-types/components"
 	"github.com/banzaicloud/banzai-types/components/amazon"
@@ -337,6 +338,11 @@ func main() {
 			Value:  "created",
 		},
 		cli.StringFlag{
+			Name:   "plugin.deployment.values",
+			Usage:  "Specific deployment values",
+			EnvVar: "PLUGIN_DEPLOYMENT_VALUES",
+		},
+		cli.StringFlag{
 			Name:   "plugin.log.level",
 			Usage:  "Specific log level (debug,info,warn)",
 			EnvVar: "PLUGIN_LOG_LEVEL",
@@ -393,6 +399,17 @@ func run(c *cli.Context) error {
 	}
 
 	settingUpDefaults(c)
+
+	var deploymentValues map[string]interface{}
+
+	if c.String("plugin.deployment.values") != "" {
+
+		err := json.Unmarshal([]byte(c.String("plugin.deployment.values")), &deploymentValues)
+
+		if err != nil {
+			LogFatalf(LOGTAG, "Unable to parse Deployment values: %+v", err)
+		}
+	}
 
 	plugin := Plugin{
 		Repo: Repo{
@@ -471,6 +488,7 @@ func run(c *cli.Context) error {
 				Name:        c.String("plugin.deployment.name"),
 				ReleaseName: c.String("plugin.deployment.release_name"),
 				State:       c.String("plugin.deployment.state"),
+				Values:      deploymentValues,
 			},
 		},
 	}

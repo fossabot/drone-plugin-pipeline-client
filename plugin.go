@@ -77,9 +77,10 @@ type (
 	}
 
 	Deployment struct {
-		Name        string `json:"name"`
-		ReleaseName string `json:"releasename"`
-		State       string `json:"state"`
+		Name        string                 `json:"name"`
+		ReleaseName string                 `json:"releasename"`
+		State       string                 `json:"state"`
+		Values      map[string]interface{} `json:"values"`
 	}
 )
 
