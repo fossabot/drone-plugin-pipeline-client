@@ -53,12 +53,16 @@ Pipeline REST API client plugin for Drone. A step in the Pipeline PaaS CI/CD com
 | amazon_node_min_count       | Specified node count | 1   | No       |
 | amazon_node_spot_price      | Specified spot price | 0 (normal instance)   | No       |
 
+In case of Azure a resource group has to be used. Use the Azure CLI to create Azure Resource Group:
+https://docs.microsoft.com/en-us/azure/azure-resource-manager/xplat-cli-azure-resource-manager
+
 #### Azure
 | Option                      | Description              | Default  | Required |
 | -------------               | -----------------------  | --------:| --------:|
 | azure_resource_group        | Created azure resource group | ""       | Yes     |
 | azure_kubernetes_version    | Desired Kubernetes version   | "1.8.2"  | No      |
-| azure_agent_name            | Azure agent name   | ""       | No      |
+| azure_agent_name            | Azure agent name             | ""       | No      |
+
 ##
 ## Test container/plugin with docker
 
