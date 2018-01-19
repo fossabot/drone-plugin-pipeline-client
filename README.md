@@ -40,6 +40,7 @@ These options needs to be specified in the CI/CD [GUI](https://github.com/banzai
 | log_format       | Specified log format (`json`, `text`) | json   | No       |
 
 ### Provider specific options
+
 #### Amazon
 | Option                      | Description              | Default  | Required |
 | -------------               | -----------------------  | --------:| --------:|
