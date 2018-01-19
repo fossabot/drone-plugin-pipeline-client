@@ -1,21 +1,13 @@
 
 ## Pipeline API client plugin for Drone
 
-Pipeline REST API client plugin for Drone. A step in the Pipeline PaaS CI/CD component to provision a Kubernetes cluster or use a managed one.
-
-### Example drone config
-
-.drone.yml
-
-## Plugin image: 
-
-[banzaicloud/pipeline_client](https://hub.docker.com/r/banzaicloud/plugin-pipeline-client/)    
+Pipeline REST API client plugin for Drone. A step in the Pipeline PaaS CI/CD component to provision a Kubernetes cluster or use a managed one. Currently two cloud provider supported Amazon and Azure(AKS).
 
 #### Specify required secrets
 
 Provide valid credentials for the pipeline API.
 
-These options needs to be specified in the CI/CD GUI.
+These options needs to be specified in the CI/CD [GUI](https://github.com/banzaicloud/pipeline/blob/master/docs/pipeline-howto.md#cicd-secrets).
 
 * endpoint: http://[control-plane-host]/pipeline/api/v1
 * username: Specified pipeline username
@@ -63,59 +55,11 @@ These options needs to be specified in the CI/CD GUI.
 In case of Azure a resource group has to be used. Use the Azure CLI to create Azure Resource Group:
 https://docs.microsoft.com/en-us/azure/azure-resource-manager/xplat-cli-azure-resource-manager
 
-#### Azure
+#### Azure (AKS)
 | Option                      | Description              | Default  | Required |
 | -------------               | -----------------------  | --------:| --------:|
 | azure_resource_group        | Created azure resource group | ""       | Yes     |
 | azure_kubernetes_version    | Desired Kubernetes version   | "1.8.2"  | No      |
 | azure_agent_name            | Azure agent name             | ""       | No      |
 
-##
-## Test container/plugin with docker
-
-## Build new docker image
-    make docker
-
-### Use example .env file and fill require vars
-    cp .env.example .env
-    docker run -env-file .env --rm -it banzaicloud/pipeline_client:latest
-
-
-
-
-    pipeline:
-    ...
-        image: banzaicloud/pipeline_client:latest
-
-## Available parameters
-
-### Pipeline api entrypoint (recomended)
-
-    pipeline:
-    ...
-        image: banzaicloud/pipeline_client:latest
-        secrets: [ plugin_endpoint, plugin_username, plugin_password]
-        
-#### or
-    pipeline:
-    ...
-        image: banzaicloud/pipeline_client:latest
-        endpoint: http://[your-host-name-or-ip]/pipeline/api/v1
-        username: admin
-        password: *****
-
-### Logs (optionals)
-    pipeline:
-    ...
-        log_level: info # optional
-        log_format: text # optional
-        
-## For developers
-### Use .env file (example)
-
-    cp .env.example .env
-    source .env
-
-### Test with `go run`
-
-    go run -ldflags "-X main.version=1.0" main.go plugin.go log.go --plugin.log.level debug --plugin.log.format text
+Are you a developer? Click [here](dev.md)
