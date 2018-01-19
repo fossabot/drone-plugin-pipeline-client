@@ -225,17 +225,17 @@ func main() {
 		cli.StringFlag{
 			Name:   "plugin.endpoint",
 			Usage:  "API Url",
-			EnvVar: "PLUGIN_ENDPOINT",
+			EnvVar: "PLUGIN_ENDPOINT,ENDPOINT",
 		},
 		cli.StringFlag{
 			Name:   "plugin.username",
 			Usage:  "API Username",
-			EnvVar: "PLUGIN_USERNAME",
+			EnvVar: "PLUGIN_USERNAME,USERNAME",
 		},
 		cli.StringFlag{
 			Name:   "plugin.password",
 			Usage:  "API Password",
-			EnvVar: "PLUGIN_PASSWORD",
+			EnvVar: "PLUGIN_PASSWORD,PASSWORD",
 		},
 		cli.StringFlag{
 			Name:   "plugin.cluster.name",

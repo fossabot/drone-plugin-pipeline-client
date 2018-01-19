@@ -103,7 +103,7 @@ func (p *Plugin) Exec() error {
 		for _, v := range err.(validator.ValidationErrors) {
 			LogErrorf(LOGTAG, "[%s] field validation error (%+v)", v.Field(), v)
 		}
-		return errors.New("Validation error(s)")
+		return errors.New("validation error(s)")
 	}
 
 	LogInfof(LOGTAG, "Cluster desired state: %s", p.Config.Cluster.State)
@@ -116,11 +116,14 @@ func (p *Plugin) Exec() error {
 			os.Exit(1)
 		}
 
+		LogInfo(LOGTAG, "Waiting cluster start ...")
 		for ok := true; ok; ok = !clusterIsExists(&p.Config) {
 			ok = !clusterIsExists(&p.Config)
-			LogInfo(LOGTAG, "Waiting...")
-			time.Sleep(5 * time.Second)
+			if ok {
+				time.Sleep(5 * time.Second)
+			}
 		}
+		LogInfo(LOGTAG, "Done.")
 	} else if p.Config.Cluster.State == createdState {
 		LogInfo(LOGTAG, "Use existing cluster, nothing to do")
 	} else if p.Config.Cluster.State == deletedState && clusterIsExists(&p.Config) {
@@ -134,22 +137,24 @@ func (p *Plugin) Exec() error {
 		dumpClusterConfig(p)
 	}
 
+	LogInfo(LOGTAG, "Waiting helm available...")
 	for ok := true; ok; ok = !helmIsReady(&p.Config) {
 		ok = !helmIsReady(&p.Config)
 		if ok {
-			LogInfo(LOGTAG, "Waiting helm ...")
 			time.Sleep(5 * time.Second)
 		}
 	}
+
+	LogInfo(LOGTAG, "Done.")
 	LogDebugf("s", "", p.Config.Deployment.State)
 	if p.Config.Deployment.Name != "" {
+		LogInfo(LOGTAG, "Waiting deployment ...")
 		if p.Config.Deployment.State == createdState && !deploymentIsExists(&p.Config) {
 			installDeployment(&p.Config)
 
 			for ok := true; ok; ok = !deploymentIsExists(&p.Config) {
 				ok = !deploymentIsExists(&p.Config)
 				if ok {
-					LogInfo(LOGTAG, "Waiting deployment ...")
 					time.Sleep(5 * time.Second)
 				}
 			}
@@ -240,7 +245,7 @@ func helmIsReady(config *Config) bool {
 	if resp.StatusCode == 200 {
 		return true
 	} else if resp.StatusCode == 503 {
-		LogInfo(LOGTAG, "Helm not ready.")
+		LogDebug(LOGTAG, "Helm not ready.")
 		return false
 	}
 
@@ -273,10 +278,10 @@ func clusterIsExists(config *Config) bool {
 	if resp.StatusCode == 200 {
 		return true
 	} else if resp.StatusCode == 404 {
-		LogInfo(LOGTAG, "Cluster not found.")
+		LogDebug(LOGTAG, "Cluster not found.")
 		return false
 	} else if resp.StatusCode == 204 {
-		LogInfo(LOGTAG, "Cluster isn't alive yet.")
+		LogDebug(LOGTAG, "Cluster isn't alive yet.")
 		return false
 	}
 

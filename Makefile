@@ -1,5 +1,5 @@
 EXECUTABLE ?= pipeline-client
-IMAGE ?= banzaicloud/$(EXECUTABLE)
+IMAGE ?= banzaicloud/plugin-$(EXECUTABLE)
 TAG ?= dev-$(shell git log -1 --pretty=format:"%h")
 
 PACKAGES = $(shell go list ./... | grep -v /vendor/)
@@ -10,7 +10,7 @@ PACKAGES = $(shell go list ./... | grep -v /vendor/)
 list:
 	@$(MAKE) -pRrn : -f $(MAKEFILE_LIST) 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | egrep -v -e '^[^[:alnum:]]' -e '^$@$$' | sort
 
-all: clean deps fmt vet build
+all: clean deps fmt vet docker push
 
 clean:
 	rm -rf bin/*
@@ -31,7 +31,6 @@ docker:
 push:
 	docker push $(IMAGE):$(TAG)
 
-$(EXECUTABLE): $(wildcard *.go)
-	go build -o bin/$(EXECUTABLE)
-
-build: $(EXECUTABLE)
+run-dev:
+	. .env
+	go run $(wildcard *.go)
