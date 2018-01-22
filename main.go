@@ -14,8 +14,9 @@ import (
 )
 
 var (
-	version             string = ""
-	defaultAmazonImage  string = "ami-06d1667f"
+	version             	string = ""
+	defaultAmazonImage  	string = "ami-06d1667f"
+	defaultAmazonSpotPrice 	string = "0.2" //spot price for the default region/instance type
 	defaultInstanceType        = map[string]string{
 		"amazon": "m4.xlarge",       // 4 vCPU, 16 GB RAM, General Purpose
 		"azure":  "Standard_D4s_v3", // 4 vCPU, 16 GB RAM, General Purpose
@@ -308,7 +309,7 @@ func main() {
 			Name:   "plugin.amazon.node.spot_price",
 			Usage:  "Spot price",
 			EnvVar: "PLUGIN_AMAZON_NODE_SPOT_PRICE",
-			Value:  "0",
+			Value:  defaultAmazonSpotPrice,
 		},
 		cli.StringFlag{
 			Name:   "plugin.amazon.master.image",
