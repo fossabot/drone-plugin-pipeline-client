@@ -204,7 +204,7 @@ func deleteCluster(config *Config) bool {
 	url := fmt.Sprintf("%s/clusters/%s?field=name", config.Endpoint, config.Cluster.Name)
 	resp := apiCall(url, "DELETE", config.Username, config.Password, nil)
 
-	if resp.StatusCode == 201 {
+	if resp.StatusCode == 202 {
 		LogInfo(LOGTAG, "Cluster will be deleted")
 		return true
 	}
