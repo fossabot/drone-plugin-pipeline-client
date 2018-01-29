@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	. "github.com/banzaicloud/banzai-types/components"
 	"github.com/banzaicloud/banzai-types/components/amazon"
@@ -11,13 +13,14 @@ import (
 	"github.com/urfave/cli"
 	"os"
 	"strings"
+	"text/template"
 )
 
 var (
-	version             	string = ""
-	defaultAmazonImage  	string = "ami-06d1667f"
-	defaultAmazonSpotPrice 	string = "0.2" //spot price for the default region/instance type
-	defaultInstanceType        = map[string]string{
+	version                string = ""
+	defaultAmazonImage     string = "ami-06d1667f"
+	defaultAmazonSpotPrice string = "0.2" //spot price for the default region/instance type
+	defaultInstanceType           = map[string]string{
 		"amazon": "m4.xlarge",       // 4 vCPU, 16 GB RAM, General Purpose
 		"azure":  "Standard_D4s_v3", // 4 vCPU, 16 GB RAM, General Purpose
 	}
@@ -382,8 +385,11 @@ func run(c *cli.Context) error {
 
 	excludeVars := map[string]bool{
 		"PLUGIN_ENDPOINT": true,
+		"ENDPOINT":        true,
 		"PLUGIN_USERNAME": true,
+		"USERNAME":        true,
 		"PLUGIN_PASSWORD": true,
+		"PASSWORD":        true,
 	}
 
 	items := map[string]string{}
@@ -402,10 +408,16 @@ func run(c *cli.Context) error {
 	settingUpDefaults(c)
 
 	var deploymentValues map[string]interface{}
+	var deploymentValStr = c.String("plugin.deployment.values")
 
-	if c.String("plugin.deployment.values") != "" {
+	if deploymentValStr != "" {
 
-		err := json.Unmarshal([]byte(c.String("plugin.deployment.values")), &deploymentValues)
+		deploymentValWithSecrets := processDeploymentSecrets(deploymentValStr, items)
+
+		err := json.Unmarshal([]byte(deploymentValWithSecrets), &deploymentValues)
+
+		fmt.Printf("%#", deploymentValues)
+		fmt.Println()
 
 		if err != nil {
 			LogFatalf(LOGTAG, "Unable to parse Deployment values: %+v", err)
@@ -501,4 +513,23 @@ func run(c *cli.Context) error {
 		LogFatal(LOGTAG, err)
 	}
 	return nil
+}
+
+// Replaces placeholders in the deployment values Go template
+// Fails if invalid template provided as deployment value.
+func processDeploymentSecrets(deploymentValuesStr string, pluginEnv map[string]string) string {
+	LogInfo(LOGTAG, "filling secrets in deployment values...")
+
+	deplValTpl, err := template.New("depValTpl").Parse(deploymentValuesStr)
+	if err != nil {
+		LogFatalf(LOGTAG, "%#err", errors.New("failed to create template: "+err.Error()))
+	}
+
+	var tpl bytes.Buffer
+	err = deplValTpl.ExecuteTemplate(&tpl, "depValTpl", pluginEnv)
+	if err != nil {
+		LogFatalf(LOGTAG, "%#err", errors.New("failed to execute template: "+err.Error()))
+	}
+	LogInfo(LOGTAG, "secrets filled in deployment values.")
+	return tpl.String()
 }
