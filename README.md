@@ -44,11 +44,11 @@ These options needs to be specified in the CI/CD [GUI](https://github.com/banzai
 #### Amazon
 | Option                      | Description              | Default  | Required |
 | -------------               | -----------------------  | --------:| --------:|
-| amazon_node_type            | Specified cluster name   | ""       | Yes      |
-| amazon_master_image         | Specified Image for master node  | ami-06d1667f| No       |
+| amazon_node_type            | Specified instance type   | "m4.xlarge"       | Yes      |
+| amazon_master_image         | Specified image for master node  | ami-06d1667f| No       |
 | amazon_master_instance_type | Specified instance type for master node | "m4.xlarge"   | No       |
-| amazon_node_image           | Specified Image for node | ami-06d1667f| No       |
-| amazon_node_instance_type   | Specified Instance type for node | "m4.xlarge"   | No       |
+| amazon_node_image           | Specified image for node | ami-06d1667f| No       |
+| amazon_node_instance_type   | Specified instance type for node | "m4.xlarge"   | No       |
 | amazon_node_min_count       | Specified node count | 1   | No       |
 | amazon_node_min_count       | Specified node count | 1   | No       |
 | amazon_node_spot_price      | Specified spot price | 0 (normal instance)   | No       |
@@ -57,10 +57,11 @@ In case of Azure a resource group has to be used. Use the Azure CLI to create Az
 https://docs.microsoft.com/en-us/azure/azure-resource-manager/xplat-cli-azure-resource-manager
 
 #### Azure (AKS)
-| Option                      | Description              | Default  | Required |
-| -------------               | -----------------------  | --------:| --------:|
-| azure_resource_group        | Created azure resource group | ""       | Yes     |
-| azure_kubernetes_version    | Desired Kubernetes version   | "1.8.2"  | No      |
-| azure_agent_name            | Azure agent name             | ""       | No      |
+| Option                      | Description                      | Default  | Required |
+| -------------               | -----------------------          | ----------:| --------:|
+| azure_resource_group        | Existing azure resource group     | ""        | Yes     |
+| azure_kubernetes_version    | Specified kubernetes version | "1.8.2"            | No      |
+| azure_agent_name            | Specified agent name         | [cluster_name](#main-options)       | No      |
+| azure_node_instance_type    | Specified instance type      | "Standard_D4s_v3"  | No      |
 
 Are you a developer? Click [here](dev.md)
