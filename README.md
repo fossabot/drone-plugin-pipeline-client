@@ -81,10 +81,11 @@ install_my_app:
       app:
         logDirectory: "...."
         db_user: "root"
-        db_password: "{{ .PLUGIN_DATABASE_PASSWORD }}"
-    secrets: [ endpoint, username, password, plugin_database_password ]
+        db_password: "{{ .DATABASE_PASSWORD }}"
+    secrets: [ endpoint, username, password, database_password ]
 ```
 
-In this example beside the [required secrets](#specify-required-secrets) there is `plugin_database_password` through which we can set up a password through the CI/CD flow. Note the placeholder `{{ .PLUGIN_DATABASE_PASSWORD }}` specified for `plugin_database_password` key in the yaml. This placeholder will be replaced with the value of `plugin_database_password` secret.
+In this example beside the [required secrets](#specify-required-secrets) there is `database_password` through which we can set up a password through the CI/CD flow. Note the placeholder `{{ .DATABASE_PASSWORD }}` specified for `atabase_password` key in the yaml. This placeholder will be replaced with the value of `database_password` secret.
+> __Don't use secret variable with `plugin_` prefix. (e.g: PLUGIN_FOO )__
 
 Are you a developer? Click [here](dev.md)
