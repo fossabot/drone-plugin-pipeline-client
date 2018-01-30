@@ -393,11 +393,16 @@ func run(c *cli.Context) error {
 	}
 
 	items := map[string]string{}
+	itemForTemplate := map[string]string{}
 	for _, element := range os.Environ() {
 		variable := strings.Split(element, "=")
 
 		if strings.Contains(variable[0], "PLUGIN") && !excludeVars[variable[0]] {
 			items[variable[0]] = variable[1]
+		}
+
+		if !strings.Contains(variable[0], "PLUGIN") && !excludeVars[variable[0]] {
+			itemForTemplate[variable[0]] = variable[1]
 		}
 	}
 
@@ -412,9 +417,7 @@ func run(c *cli.Context) error {
 
 	if deploymentValStr != "" {
 
-		deploymentValWithSecrets := processDeploymentSecrets(deploymentValStr, items)
-
-		err := json.Unmarshal([]byte(deploymentValWithSecrets), &deploymentValues)
+		err := json.Unmarshal([]byte(processDeploymentSecrets(deploymentValStr, itemForTemplate)), &deploymentValues)
 
 		LogDebugf(LOGTAG, "Deployment values %#v", deploymentValues)
 
