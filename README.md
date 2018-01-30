@@ -20,7 +20,7 @@ These options needs to be specified in the CI/CD [GUI](https://github.com/banzai
       create_cluster:
         cluster_name: "demo-cluster1"
         image: banzaicloud/pipeline_client:latest
-        secrets: [ endpoint, username, password]
+        secrets: [ endpoint, username, password ]
 
 ### Create or use existing cluster (Azure(AKS))
     pipeline:
@@ -28,7 +28,7 @@ These options needs to be specified in the CI/CD [GUI](https://github.com/banzai
         cluster_name: "demo-cluster1"
         cluster_provider: azure
         image: banzaicloud/pipeline_client:latest
-        secrets: [ endpoint, username, password]
+        secrets: [ endpoint, username, password ]
 
 ### Main options
 
@@ -39,7 +39,7 @@ These options needs to be specified in the CI/CD [GUI](https://github.com/banzai
 | log_level        | Specified log level (`info`, `warning`,`error`, `critical`) | info   | No       |
 | log_format       | Specified log format (`json`, `text`) | json   | No       |
 
-### Provider specific options
+### Cloud provider specific options
 
 #### Amazon
 | Option                      | Description              | Default  | Required |
@@ -53,15 +53,38 @@ These options needs to be specified in the CI/CD [GUI](https://github.com/banzai
 | amazon_node_min_count       | Specified node count | 1   | No       |
 | amazon_node_spot_price      | Specified spot price | 0 (normal instance)   | No       |
 
+#### Azure (AKS)
+
 In case of Azure a resource group has to be used. Use the Azure CLI to create Azure Resource Group:
 https://docs.microsoft.com/en-us/azure/azure-resource-manager/xplat-cli-azure-resource-manager
 
-#### Azure (AKS)
 | Option                      | Description                      | Default  | Required |
 | -------------               | -----------------------          | ----------:| --------:|
 | azure_resource_group        | Existing azure resource group     | ""        | Yes     |
 | azure_kubernetes_version    | Specified kubernetes version | "1.8.2"            | No      |
 | azure_agent_name            | Specified agent name         | [cluster_name](#main-options)       | No      |
 | azure_node_instance_type    | Specified instance type      | "Standard_D4s_v3"  | No      |
+
+### Dynamic application specific secrets
+
+Applications deployed by CI/CD may require options of which value is unknown until deployment time or doesn't want to specify it directly in `.pipeline.yml` file thus the user will only be able to specify them when hooks the application to the CI/CD flow. Such values can be passed to the application through CI/CD secrets. The values are bound to the keys listed under `deployment_values` -> `app` which is illustrated in the example below.
+
+E.g.:
+
+```yaml
+install_my_app:
+    image: my_app_docker_image:latest
+
+    deployment_name: "my_app_helm_chart"
+    deployment_release_name: "my_app"
+    deployment_values:
+      app:
+        logDirectory: "...."
+        db_user: "root"
+        db_password: "{{ .DATABASE_PASSWORD }}"
+    secrets: [ plugin, plugin, plugin, database_password ]
+```
+
+In this example beside the [required secrets](#specify-required-secrets) there is `database_password` through which we can set up a password through the CI/CD flow. Note the placeholder `{{ .DATABASE_PASSWORD }}` specified for `db_password` key in the yaml. This placeholder will be replaced with the value of `database_password` secret.
 
 Are you a developer? Click [here](dev.md)
