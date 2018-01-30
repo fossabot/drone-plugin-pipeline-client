@@ -416,8 +416,7 @@ func run(c *cli.Context) error {
 
 		err := json.Unmarshal([]byte(deploymentValWithSecrets), &deploymentValues)
 
-		fmt.Printf("%#", deploymentValues)
-		fmt.Println()
+		LogDebugf(LOGTAG, "Deployment values %#v", deploymentValues)
 
 		if err != nil {
 			LogFatalf(LOGTAG, "Unable to parse Deployment values: %+v", err)
