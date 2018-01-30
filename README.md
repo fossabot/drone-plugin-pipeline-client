@@ -14,7 +14,7 @@ These options needs to be specified in the CI/CD [GUI](https://github.com/banzai
 * password: Specified pipeline password
 
 
-### Create or use existing cluster (Amazon)
+### Create or use existing cluster (Amazon EC2)
 
     pipeline:
       create_cluster:
@@ -22,7 +22,7 @@ These options needs to be specified in the CI/CD [GUI](https://github.com/banzai
         image: banzaicloud/pipeline_client:latest
         secrets: [ endpoint, username, password ]
 
-### Create or use existing cluster (Azure(AKS))
+### Create or use existing cluster (Azure AKS)
     pipeline:
       create_cluster:
         cluster_name: "demo-cluster1"
@@ -55,7 +55,7 @@ These options needs to be specified in the CI/CD [GUI](https://github.com/banzai
 
 #### Azure (AKS)
 
-In case of Azure a resource group has to be used. Use the Azure CLI to create Azure Resource Group:
+In case of Azure a resource group has to be used. Use the Azure CLI to create an Azure Resource Group:
 https://docs.microsoft.com/en-us/azure/azure-resource-manager/xplat-cli-azure-resource-manager
 
 | Option                      | Description                      | Default  | Required |
