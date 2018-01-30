@@ -395,7 +395,7 @@ func run(c *cli.Context) error {
 	items := map[string]string{}
 	itemForTemplate := map[string]string{}
 	for _, element := range os.Environ() {
-		variable := strings.Split(element, "=")
+		variable := strings.SplitN(element, "=", 2)
 
 		if strings.Contains(variable[0], "PLUGIN") && !excludeVars[variable[0]] {
 			items[variable[0]] = variable[1]
