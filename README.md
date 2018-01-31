@@ -9,9 +9,9 @@ Provide valid credentials for the pipeline API.
 
 These options needs to be specified in the CI/CD [GUI](https://github.com/banzaicloud/pipeline/blob/master/docs/pipeline-howto.md#cicd-secrets).
 
-* endpoint: http://[control-plane-host]/pipeline/api/v1
-* username: Specified pipeline username
-* password: Specified pipeline password
+* plugin_endpoint: http://[control-plane-host]/pipeline/api/v1
+* plugin_username: Specified pipeline username
+* plugin_password: Specified pipeline password
 
 
 ### Create or use existing cluster (Amazon EC2)
@@ -20,7 +20,7 @@ These options needs to be specified in the CI/CD [GUI](https://github.com/banzai
       create_cluster:
         cluster_name: "demo-cluster1"
         image: banzaicloud/pipeline_client:latest
-        secrets: [ endpoint, username, password ]
+        secrets: [ plugin_endpoint, plugin_username, plugin_password ]
 
 ### Create or use existing cluster (Azure AKS)
     pipeline:
@@ -28,7 +28,7 @@ These options needs to be specified in the CI/CD [GUI](https://github.com/banzai
         cluster_name: "demo-cluster1"
         cluster_provider: azure
         image: banzaicloud/pipeline_client:latest
-        secrets: [ endpoint, username, password ]
+        secrets: [ plugin_endpoint, plugin_username, plugin_password ]
 
 ### Main options
 
@@ -81,11 +81,11 @@ install_my_app:
       app:
         logDirectory: "...."
         db_user: "root"
-        db_password: "{{ .DATABASE_PASSWORD }}"
-    secrets: [ endpoint, username, password, database_password ]
+        db_password: "{{ .PLUGIN_DATABASE_PASSWORD }}"
+    secrets: [ plugin_endpoint, plugin_username, plugin_password, plugin_database_password ]
 ```
 
-In this example beside the [required secrets](#specify-required-secrets) there is `database_password` through which we can set up a password through the CI/CD flow. Note the placeholder `{{ .DATABASE_PASSWORD }}` specified for `atabase_password` key in the yaml. This placeholder will be replaced with the value of `database_password` secret.
-> __Don't use secret variable with `plugin_` prefix. (e.g: PLUGIN_FOO )__
+In this example beside the [required secrets](#specify-required-secrets) there is a `plugin_database_password` through which we can set up a password through the CI/CD flow. Note the placeholder `{{ .PLUGIN_DATABASE_PASSWORD }}` specified for `plugin_database_password` key in the yaml. This placeholder will be replaced with the value of `plugin_database_password` secret.
+
 
 Are you a developer? Click [here](dev.md)
