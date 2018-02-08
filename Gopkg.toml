@@ -22,7 +22,7 @@
 
 [[constraint]]
   name = "github.com/banzaicloud/banzai-types"
-  revision = "227969bb7d796e80e625686479bfc0777628e284"
+  version = "0.2.0"
 
 [[constraint]]
   name = "github.com/joho/godotenv"

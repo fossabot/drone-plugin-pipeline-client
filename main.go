@@ -3,13 +3,14 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	. "github.com/banzaicloud/banzai-types/components"
 	"github.com/banzaicloud/banzai-types/components/amazon"
 	"github.com/banzaicloud/banzai-types/components/azure"
+	"github.com/banzaicloud/banzai-types/components/google"
 	. "github.com/banzaicloud/banzai-types/utils"
 	"github.com/joho/godotenv"
+	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 	"os"
 	"strings"
@@ -20,13 +21,16 @@ var (
 	version                string = ""
 	defaultAmazonImage     string = "ami-06d1667f"
 	defaultAmazonSpotPrice string = "0.2" //spot price for the default region/instance type
-	defaultInstanceType           = map[string]string{
+
+	defaultInstanceType = map[string]string{
 		"amazon": "m4.xlarge",       // 4 vCPU, 16 GB RAM, General Purpose
 		"azure":  "Standard_D4s_v3", // 4 vCPU, 16 GB RAM, General Purpose
+		"google": "n1-standard-4",   // 4 vCPUs 15 GB RAM. Standard machine
 	}
 	defaultClusterLocation = map[string]string{
 		"amazon": "eu-west-1",
 		"azure":  "westeurope",
+		"google": "us-central1-a",
 	}
 )
 
@@ -267,7 +271,7 @@ func main() {
 		cli.StringFlag{
 			Name:   "plugin.node.instance_type",
 			Usage:  "EC2 instance type",
-			EnvVar: "PLUGIN_AMAZON_NODE_INSTANCE_TYPE,PLUGIN_AZURE_NODE_INSTANCE_TYPE",
+			EnvVar: "PLUGIN_AMAZON_NODE_INSTANCE_TYPE,PLUGIN_AZURE_NODE_INSTANCE_TYPE, PLUGIN_GOOGLE_INSTANCE_TYPE",
 		},
 		cli.StringFlag{
 			Name:   "plugin.azure.resource_group",
@@ -358,27 +362,47 @@ func main() {
 			EnvVar: "PLUGIN_LOG_FORMAT",
 			Value:  "text",
 		},
+		cli.StringFlag{
+			Name:   "plugin.google.project",
+			Usage:  "The google cloud project name",
+			EnvVar: "PLUGIN_GOOGLE_PROJECT",
+		},
+		cli.StringFlag{
+			Name:   "plugin.google.gke.version",
+			Usage:  "The kubernetes version of the GKE",
+			EnvVar: "PLUGIN_GOOGLE_GKE_VERSION",
+			Value:  "1.8.7-gke.0",
+		},
+		cli.IntFlag{
+			Name:   "plugin.google.node.count",
+			Usage:  "The number of nodes in the cluster",
+			EnvVar: "PLUGIN_GOOGLE_NODE_COUNT",
+			Value:  1,
+		},
 	}
 	app.Run(os.Args)
 }
 
 func settingUpDefaults(c *cli.Context) {
 
+	provider := c.String("plugin.cluster.provider")
+
 	if c.String("plugin.node.instance_type") == "" {
-		c.Set("plugin.node.instance_type", defaultInstanceType[c.String("plugin.cluster.provider")])
+		c.Set("plugin.node.instance_type", defaultInstanceType[provider])
 	}
 
 	if c.String("plugin.amazon.master.instance_type") == "" {
-		c.Set("plugin.amazon.master.instance_type", defaultInstanceType[c.String("plugin.cluster.provider")])
+		c.Set("plugin.amazon.master.instance_type", defaultInstanceType[provider])
 	}
 
 	if c.String("plugin.cluster.location") == "" {
-		c.Set("plugin.cluster.location", defaultClusterLocation[c.String("plugin.cluster.provider")])
+		c.Set("plugin.cluster.location", defaultClusterLocation[provider])
 	}
 
 	if c.String("plugin.azure.agent_name") == "" {
 		c.Set("plugin.azure.agent_name", c.String("plugin.cluster.name"))
 	}
+
 }
 
 func run(c *cli.Context) error {
@@ -474,6 +498,7 @@ func run(c *cli.Context) error {
 					Properties: struct {
 						CreateClusterAmazon *amazon.CreateClusterAmazon `json:"amazon,omitempty"`
 						CreateClusterAzure  *azure.CreateClusterAzure   `json:"azure,omitempty"`
+						CreateClusterGoogle *google.CreateClusterGoogle `json:"google,omitempty"`
 					}{
 						CreateClusterAmazon: &amazon.CreateClusterAmazon{
 							Node: &amazon.CreateAmazonNode{
@@ -493,6 +518,16 @@ func run(c *cli.Context) error {
 								AgentCount:        c.Int("plugin.azure.node.min_count"),
 								AgentName:         c.String("plugin.azure.agent_name"),
 								KubernetesVersion: c.String("plugin.azure.kubernetes_version"),
+							},
+						},
+						CreateClusterGoogle: &google.CreateClusterGoogle{
+							Project: c.String("plugin.google.project"),
+							Master: &google.GoogleMaster{
+								Version: c.String("plugin.google.gke.version"),
+							},
+							Node: &google.GoogleNode{
+								Version: c.String("plugin.google.gke.version"),
+								Count:   c.Int("plugin.google.node.count"),
 							},
 						},
 					},
