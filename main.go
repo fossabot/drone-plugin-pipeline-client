@@ -279,6 +279,11 @@ func main() {
 			EnvVar: "PLUGIN_AZURE_RESOURCE_GROUP",
 		},
 		cli.StringFlag{
+			Name:   "plugin.azure.node.count",
+			Usage:  "Azure resource group name",
+			EnvVar: "PLUGIN_AZURE_NODE_COUNT",
+		},
+		cli.StringFlag{
 			Name:   "plugin.azure.kubernetes_version",
 			Usage:  "Azure kubernetes version",
 			EnvVar: "PLUGIN_AZURE_KUBERNETES_VERSION",
@@ -515,7 +520,7 @@ func run(c *cli.Context) error {
 						CreateClusterAzure: &azure.CreateClusterAzure{
 							Node: &azure.CreateAzureNode{
 								ResourceGroup:     c.String("plugin.azure.resource_group"),
-								AgentCount:        c.Int("plugin.azure.node.min_count"),
+								AgentCount:        c.Int("plugin.azure.node.count"),
 								AgentName:         c.String("plugin.azure.agent_name"),
 								KubernetesVersion: c.String("plugin.azure.kubernetes_version"),
 							},

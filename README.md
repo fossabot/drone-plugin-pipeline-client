@@ -44,7 +44,6 @@ These options needs to be specified in the CI/CD [GUI](https://github.com/banzai
 #### Amazon
 | Option                      | Description              | Default  | Required |
 | -------------               | -----------------------  | --------:| --------:|
-| amazon_node_type            | Specified instance type   | "m4.xlarge"       | Yes      |
 | amazon_master_image         | Specified image for master node  | ami-06d1667f| No       |
 | amazon_master_instance_type | Specified instance type for master node | "m4.xlarge"   | No       |
 | amazon_node_image           | Specified image for node | ami-06d1667f| No       |
@@ -64,6 +63,7 @@ https://docs.microsoft.com/en-us/azure/azure-resource-manager/xplat-cli-azure-re
 | azure_kubernetes_version    | Specified kubernetes version | "1.8.2"            | No      |
 | azure_agent_name            | Specified agent name         | [cluster_name](#main-options)       | No      |
 | azure_node_instance_type    | Specified instance type      | "Standard_D4s_v3"  | No      |
+| azure_node_count            | Initial number of nodes      | 1 | No | 
 
 ### Dynamic application specific secrets
 
