@@ -69,6 +69,7 @@ type (
 		Username   string
 		Password   string
 		Endpoint   string
+		Token      string
 	}
 
 	CustomCluster struct {
@@ -169,8 +170,27 @@ func (p *Plugin) Exec() error {
 	return nil
 }
 
-func apiCall(url string, method string, username string, password string, body io.Reader) *http.Response {
+// requestAuth fills the authorization header for the provided request based on the configuration
+func (config *Config) requestAuth(request *http.Request) error {
+	if len(config.Token) > 0 {
+		LogDebug(LOGTAG, "bearer token provided, setting the Authorization header")
+		request.Header.Set("Authorization", "Bearer "+config.Token)
+		return nil
+	}
+
+	if len(config.Username) > 0 {
+		LogDebugf(LOGTAG, "username provided, proceeding to basic auth")
+		request.SetBasicAuth(config.Username, config.Password)
+		return nil
+	}
+
+	LogInfof(LOGTAG, "no credentials provided, no Authorization header is set ")
+	return nil;
+}
+
+func (config *Config) apiCall(url string, method string, body io.Reader) *http.Response {
 	req, err := http.NewRequest(method, url, body)
+	config.requestAuth(req)
 
 	if method == "POST" {
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
@@ -180,7 +200,6 @@ func apiCall(url string, method string, username string, password string, body i
 		LogFatalf(LOGTAG, "failed to build http request: %v", err)
 	}
 
-	req.SetBasicAuth(username, password)
 	req.Header.Add("Accept", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
@@ -202,7 +221,7 @@ func deleteCluster(config *Config) bool {
 	LogInfof(LOGTAG, "Trying to delete %s cluster\n", config.Cluster.Name)
 
 	url := fmt.Sprintf("%s/clusters/%s?field=name", config.Endpoint, config.Cluster.Name)
-	resp := apiCall(url, "DELETE", config.Username, config.Password, nil)
+	resp := config.apiCall(url, http.MethodDelete, nil)
 
 	if resp.StatusCode == 202 {
 		LogInfo(LOGTAG, "Cluster will be deleted")
@@ -224,7 +243,7 @@ func createCluster(config *Config) (bool, string) {
 
 	url := fmt.Sprintf("%s/clusters", config.Endpoint)
 	param, _ := json.Marshal(config.Cluster)
-	resp := apiCall(url, "POST", config.Username, config.Password, bytes.NewBuffer(param))
+	resp := config.apiCall(url, http.MethodPost, bytes.NewBuffer(param))
 
 	if resp.StatusCode == 201 {
 		LogInfof(LOGTAG, "Cluster (%s) will be created", config.Cluster.Name)
@@ -241,7 +260,7 @@ func createCluster(config *Config) (bool, string) {
 
 func helmIsReady(config *Config) bool {
 	url := fmt.Sprintf("%s/clusters/%s/deployments?field=name", config.Endpoint, config.Cluster.Name)
-	resp := apiCall(url, "HEAD", config.Username, config.Password, nil)
+	resp := config.apiCall(url, http.MethodHead, nil)
 
 	if resp.StatusCode == 200 {
 		return true
@@ -256,7 +275,7 @@ func helmIsReady(config *Config) bool {
 
 func deploymentIsExists(config *Config) bool {
 	url := fmt.Sprintf("%s/clusters/%s/deployments/%s?field=name", config.Endpoint, config.Cluster.Name, config.Deployment.ReleaseName)
-	resp := apiCall(url, "HEAD", config.Username, config.Password, nil)
+	resp := config.apiCall(url, http.MethodHead, nil)
 
 	if resp.StatusCode == 200 {
 		return true
@@ -274,7 +293,7 @@ func deploymentIsExists(config *Config) bool {
 
 func clusterIsExists(config *Config) bool {
 	url := fmt.Sprintf("%s/clusters/%s?field=name", config.Endpoint, config.Cluster.Name)
-	resp := apiCall(url, "HEAD", config.Username, config.Password, nil)
+	resp := config.apiCall(url, http.MethodHead, nil)
 
 	if resp.StatusCode == 200 {
 		return true
@@ -294,7 +313,7 @@ func dumpClusterConfig(plugin *Plugin) bool {
 	config := plugin.Config
 	build := plugin.Build
 	url := fmt.Sprintf("%s/clusters/%s/config?field=name", config.Endpoint, config.Cluster.Name)
-	resp := apiCall(url, "GET", config.Username, config.Password, nil)
+	resp := config.apiCall(url, http.MethodGet, nil)
 
 	defer resp.Body.Close()
 
@@ -347,7 +366,7 @@ func installDeployment(config *Config) bool {
 	url := fmt.Sprintf("%s/clusters/%s/deployments?field=name", config.Endpoint, config.Cluster.Name)
 	param, _ := json.Marshal(config.Deployment)
 
-	resp := apiCall(url, "POST", config.Username, config.Password, bytes.NewBuffer(param))
+	resp := config.apiCall(url, http.MethodPost, bytes.NewBuffer(param))
 
 	if resp.StatusCode == 201 {
 		LogInfof(LOGTAG, "Deployment (%s) will be installed", config.Deployment.Name)
@@ -365,7 +384,7 @@ func deleteDeployment(config *Config) bool {
 	url := fmt.Sprintf("%s/clusters/%s/deployments/%s?field=name", config.Endpoint, config.Cluster.Name, config.Deployment.ReleaseName)
 	param, _ := json.Marshal(config.Deployment)
 
-	resp := apiCall(url, "DELETE", config.Username, config.Password, bytes.NewBuffer(param))
+	resp := config.apiCall(url, http.MethodDelete, bytes.NewBuffer(param))
 
 	if resp.StatusCode == 200 {
 		LogInfof(LOGTAG, "Deployment (%s) will be deleted", config.Deployment.Name)

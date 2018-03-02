@@ -247,6 +247,11 @@ func main() {
 			EnvVar: "PLUGIN_PASSWORD,PASSWORD",
 		},
 		cli.StringFlag{
+			Name:   "plugin.token",
+			Usage:  "API OAuth Token",
+			EnvVar: "PLUGIN_TOKEN,TOKEN",
+		},
+		cli.StringFlag{
 			Name:   "plugin.cluster.name",
 			Usage:  "K8S Cluster name",
 			EnvVar: "PLUGIN_CLUSTER_NAME",
@@ -493,6 +498,7 @@ func run(c *cli.Context) error {
 			Endpoint: c.String("plugin.endpoint"),
 			Username: c.String("plugin.username"),
 			Password: c.String("plugin.password"),
+			Token:    c.String("plugin.token"),
 
 			Cluster: &CustomCluster{
 				CreateClusterRequest: &CreateClusterRequest{
