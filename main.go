@@ -4,17 +4,18 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
+	"text/template"
+
 	. "github.com/banzaicloud/banzai-types/components"
 	"github.com/banzaicloud/banzai-types/components/amazon"
 	"github.com/banzaicloud/banzai-types/components/azure"
 	"github.com/banzaicloud/banzai-types/components/google"
-	. "github.com/banzaicloud/banzai-types/utils"
 	"github.com/joho/godotenv"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
-	"os"
-	"strings"
-	"text/template"
 )
 
 var (
@@ -33,8 +34,6 @@ var (
 		"google": "us-central1-a",
 	}
 )
-
-const LOGTAG = "plugin"
 
 func main() {
 
@@ -389,6 +388,11 @@ func main() {
 			EnvVar: "PLUGIN_GOOGLE_NODE_COUNT",
 			Value:  1,
 		},
+		cli.StringFlag{
+			Name:   "plugin.google.service.account",
+			Usage:  "The service account the  cluster instance are run as",
+			EnvVar: "PLUGIN_GOOGLE_SERVICE_ACCOUNT",
+		},
 	}
 	app.Run(os.Args)
 }
@@ -444,6 +448,7 @@ func run(c *cli.Context) error {
 		_ = godotenv.Write(items, ".env")
 	}
 
+	processLogLevel(c)
 	settingUpDefaults(c)
 
 	var deploymentValues map[string]interface{}
@@ -453,10 +458,10 @@ func run(c *cli.Context) error {
 
 		err := json.Unmarshal([]byte(processDeploymentSecrets(deploymentValStr, itemForTemplate)), &deploymentValues)
 
-		LogDebugf(LOGTAG, "Deployment values %#v", deploymentValues)
+		log.Debugf("deployment values %#v", deploymentValues)
 
 		if err != nil {
-			LogFatalf(LOGTAG, "Unable to parse Deployment values: %+v", err)
+			log.Fatalf("unable to parse deployment values: %+v", err)
 		}
 	}
 
@@ -554,11 +559,11 @@ func run(c *cli.Context) error {
 		},
 	}
 
-	SetLogLevel(c.String("plugin.log.level"))
+	plugin.processServiceAccount(c)
 
 	err := plugin.Exec()
 	if err != nil {
-		LogFatal(LOGTAG, err)
+		log.Fatal(err)
 	}
 	return nil
 }
@@ -566,18 +571,41 @@ func run(c *cli.Context) error {
 // Replaces placeholders in the deployment values Go template
 // Fails if invalid template provided as deployment value.
 func processDeploymentSecrets(deploymentValuesStr string, pluginEnv map[string]string) string {
-	LogInfo(LOGTAG, "filling secrets in deployment values...")
+	log.Infof("filling secrets in deployment values...")
 
 	deplValTpl, err := template.New("depValTpl").Parse(deploymentValuesStr)
 	if err != nil {
-		LogFatalf(LOGTAG, "%#err", errors.New("failed to create template: "+err.Error()))
+		log.Fatalf("%#err", errors.New(fmt.Sprintf("failed to create template: [%s]", err.Error())))
 	}
 
 	var tpl bytes.Buffer
 	err = deplValTpl.ExecuteTemplate(&tpl, "depValTpl", pluginEnv)
 	if err != nil {
-		LogFatalf(LOGTAG, "%#err", errors.New("failed to execute template: "+err.Error()))
+		log.Fatalf("%#err", errors.New(fmt.Sprintf("failed to execute template: [%s]", err.Error())))
 	}
-	LogInfo(LOGTAG, "secrets filled in deployment values.")
+	log.Info("secrets filled in deployment values.")
 	return tpl.String()
+}
+
+func (plugin *Plugin) processServiceAccount(c *cli.Context) {
+	serviceAccount := c.String("plugin.google.service.account")
+
+	if len(serviceAccount) > 0 {
+		plugin.Config.Cluster.Properties.CreateClusterGoogle.Node.ServiceAccount = serviceAccount
+	}
+}
+
+func processLogLevel(c *cli.Context) {
+	switch strings.ToUpper(c.String("plugin.log.level")) {
+	case "INFO":
+		log.SetLevel(log.InfoLevel)
+	case "DEBUG":
+		log.SetLevel(log.DebugLevel)
+	case "WARN":
+		log.SetLevel(log.WarnLevel)
+	case "ERROR":
+		log.SetLevel(log.ErrorLevel)
+	case "PANIC":
+		log.SetLevel(log.PanicLevel)
+	}
 }
