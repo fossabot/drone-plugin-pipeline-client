@@ -115,11 +115,11 @@ func (p *Plugin) Exec() error {
 		_, err := createCluster(&p.Config)
 
 		if err != nil {
-			log.Fatalf("cluster creation failed: %s", err)
+			log.Fatalf("cluster creation failed: [%s]", err.Error())
 			os.Exit(1)
 		}
 
-		log.Infof("waiting for the cluster to start ...")
+		log.Infof("waiting for the cluster [%s] to start ...", p.Config.Cluster.Name)
 
 		for ok := true; ok; ok = !clusterExists(&p.Config) {
 			ok = !clusterExists(&p.Config)
@@ -127,10 +127,10 @@ func (p *Plugin) Exec() error {
 				time.Sleep(5 * time.Second)
 			}
 		}
-		log.Infof("cluster started.")
+		log.Infof("cluster [%s] started.", p.Config.Cluster.Name)
 
 	} else if p.Config.Cluster.State == createdState {
-		log.Infof("using existing cluster: [%s], nothing to do", p.Config.Cluster.Name)
+		log.Infof("using existing cluster: [%s]", p.Config.Cluster.Name)
 	} else if p.Config.Cluster.State == deletedState && clusterExists(&p.Config) {
 		deleteCluster(&p.Config)
 		return nil
@@ -198,7 +198,7 @@ func (config *Config) apiCall(url string, method string, body io.Reader) *http.R
 	req, err := http.NewRequest(method, url, body)
 
 	if err != nil {
-		log.Fatalf("could not create request [%s]", err)
+		log.Fatalf("could not create request [%s]", err.Error())
 	}
 
 	config.requestAuth(req)
@@ -208,7 +208,7 @@ func (config *Config) apiCall(url string, method string, body io.Reader) *http.R
 	}
 
 	if err != nil {
-		log.Fatalf("failed to build http request: %v", err)
+		log.Fatalf("failed to build http request: [%s]", err.Error())
 	}
 
 	req.Header.Add("Accept", "application/json")
@@ -216,7 +216,7 @@ func (config *Config) apiCall(url string, method string, body io.Reader) *http.R
 	resp, err := http.DefaultClient.Do(req)
 
 	if err != nil {
-		log.Fatalf("failed to call [%s] on [%s]: %+v", method, url, err)
+		log.Fatalf("failed to call [%s] on [%s] , error: [%s]", method, url, err.Error())
 	}
 
 	debugReq, _ := httputil.DumpRequest(req, true)
@@ -255,7 +255,7 @@ func createCluster(config *Config) (bool, error) {
 	param, err := json.Marshal(config.Cluster)
 
 	if err != nil {
-		log.Errorf("could not process cluster details. err: %s", err)
+		log.Errorf("could not process cluster details. err: [%s]", err.Error())
 		return false, err
 	}
 
@@ -358,7 +358,7 @@ func dumpClusterConfig(plugin *Plugin) bool {
 		err := json.NewDecoder(resp.Body).Decode(&result)
 
 		if err != nil {
-			log.Fatalf("error while parsing JSON: [%s]", err)
+			log.Fatalf("error while parsing JSON: [%s]", err.Error())
 			return false
 		}
 

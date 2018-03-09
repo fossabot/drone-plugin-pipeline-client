@@ -457,10 +457,10 @@ func run(c *cli.Context) error {
 
 		err := json.Unmarshal([]byte(processDeploymentSecrets(deploymentValStr, itemForTemplate)), &deploymentValues)
 
-		log.Debugf("deployment values: %#v", deploymentValues)
+		log.Debugf("deployment values: %+v", deploymentValues)
 
 		if err != nil {
-			log.Fatalf("unable to parse deployment values: %+v", err)
+			log.Fatalf("unable to parse deployment values: [%s]", err.Error())
 		}
 	}
 
