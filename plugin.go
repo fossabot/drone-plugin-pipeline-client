@@ -366,7 +366,7 @@ func dumpClusterConfig(plugin *Plugin) bool {
 		err = os.MkdirAll(wsConfigDir, 0755)
 
 		if err != nil {
-			log.Fatalf("unable to create dir: [%s], error: [%s]", wsConfigDir, err)
+			log.Fatalf("unable to create dir: [%s], error: [%s]", wsConfigDir, err.Error())
 			return false
 		}
 
@@ -374,7 +374,7 @@ func dumpClusterConfig(plugin *Plugin) bool {
 		err = ioutil.WriteFile(wsConfigFile, []byte(result.Data), 0666)
 
 		if err != nil {
-			log.Fatalf("error while writing config file: [%s], error [%s]", wsConfigFile, err)
+			log.Fatalf("error while writing config file: [%s], error [%s]", wsConfigFile, err.Error())
 			return false
 		}
 

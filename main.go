@@ -13,7 +13,6 @@ import (
 	"github.com/banzaicloud/banzai-types/components/azure"
 	"github.com/banzaicloud/banzai-types/components/google"
 	"github.com/joho/godotenv"
-	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -575,13 +574,13 @@ func processDeploymentSecrets(deploymentValuesStr string, pluginEnv map[string]s
 
 	deplValTpl, err := template.New("depValTpl").Parse(deploymentValuesStr)
 	if err != nil {
-		log.Fatalf("%#v", errors.New(fmt.Sprintf("failed to create template: [%s]", err.Error())))
+		log.Fatalf("failed to create template: [%s]", err.Error())
 	}
 
 	var tpl bytes.Buffer
 	err = deplValTpl.ExecuteTemplate(&tpl, "depValTpl", pluginEnv)
 	if err != nil {
-		log.Fatalf("%#v", errors.New(fmt.Sprintf("failed to execute template: [%s]", err.Error())))
+		log.Fatalf("failed to execute template: [%s]", err.Error())
 	}
 	log.Debug("secrets filled in deployment values.")
 	return tpl.String()
