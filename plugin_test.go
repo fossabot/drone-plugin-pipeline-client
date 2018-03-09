@@ -3,9 +3,9 @@ package main
 import (
 	"testing"
 
-	"net/http"
-	"github.com/stretchr/testify/assert"
 	"encoding/base64"
+	"github.com/stretchr/testify/assert"
+	"net/http"
 )
 
 type TestCase struct {
@@ -30,9 +30,8 @@ var testCases = []TestCase{
 		AuthHeader: "Basic " + base64.StdEncoding.EncodeToString([]byte("testing:")),
 	},
 	TestCase{
-		Name: "No auth",
-		Cfg: Config{
-		},
+		Name:       "No auth",
+		Cfg:        Config{},
 		AuthHeader: "",
 	},
 	TestCase{

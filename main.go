@@ -458,7 +458,7 @@ func run(c *cli.Context) error {
 
 		err := json.Unmarshal([]byte(processDeploymentSecrets(deploymentValStr, itemForTemplate)), &deploymentValues)
 
-		log.Debugf("deployment values %#v", deploymentValues)
+		log.Debugf("deployment values: %#v", deploymentValues)
 
 		if err != nil {
 			log.Fatalf("unable to parse deployment values: %+v", err)
@@ -571,19 +571,19 @@ func run(c *cli.Context) error {
 // Replaces placeholders in the deployment values Go template
 // Fails if invalid template provided as deployment value.
 func processDeploymentSecrets(deploymentValuesStr string, pluginEnv map[string]string) string {
-	log.Infof("filling secrets in deployment values...")
+	log.Debug("filling secrets in deployment values...")
 
 	deplValTpl, err := template.New("depValTpl").Parse(deploymentValuesStr)
 	if err != nil {
-		log.Fatalf("%#err", errors.New(fmt.Sprintf("failed to create template: [%s]", err.Error())))
+		log.Fatalf("%#v", errors.New(fmt.Sprintf("failed to create template: [%s]", err.Error())))
 	}
 
 	var tpl bytes.Buffer
 	err = deplValTpl.ExecuteTemplate(&tpl, "depValTpl", pluginEnv)
 	if err != nil {
-		log.Fatalf("%#err", errors.New(fmt.Sprintf("failed to execute template: [%s]", err.Error())))
+		log.Fatalf("%#v", errors.New(fmt.Sprintf("failed to execute template: [%s]", err.Error())))
 	}
-	log.Info("secrets filled in deployment values.")
+	log.Debug("secrets filled in deployment values.")
 	return tpl.String()
 }
 

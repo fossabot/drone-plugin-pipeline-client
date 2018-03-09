@@ -15,6 +15,7 @@ import (
 	. "github.com/banzaicloud/banzai-types/components"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/go-playground/validator.v9"
+	"path"
 )
 
 type (
@@ -129,7 +130,7 @@ func (p *Plugin) Exec() error {
 		log.Infof("cluster started.")
 
 	} else if p.Config.Cluster.State == createdState {
-		log.Infof("using existing cluster, nothing to do")
+		log.Infof("using existing cluster: [%s], nothing to do", p.Config.Cluster.Name)
 	} else if p.Config.Cluster.State == deletedState && clusterExists(&p.Config) {
 		deleteCluster(&p.Config)
 		return nil
@@ -137,18 +138,18 @@ func (p *Plugin) Exec() error {
 		return nil
 	}
 
-	if p.Config.Cluster.State == createdState {
-		dumpClusterConfig(p)
-	}
-
-	log.Infof("setting up helm ...")
+	log.Info("setting up helm ...")
 	for ok := true; ok; ok = !isHelmReady(&p.Config) {
 		ok = !isHelmReady(&p.Config)
 		if ok {
 			time.Sleep(5 * time.Second)
 		}
 	}
-	log.Infof("helm is ready.")
+	log.Info("helm is ready.")
+
+	if p.Config.Cluster.State == createdState {
+		dumpClusterConfig(p)
+	}
 
 	if len(p.Config.Deployment.Name) > 0 {
 		log.Infof("checking deployment [%s]", p.Config.Deployment.Name)
@@ -174,21 +175,21 @@ func (p *Plugin) Exec() error {
 // requestAuth fills the authorization header for the provided request based on the configuration
 func (config *Config) requestAuth(request *http.Request) error {
 	if request == nil {
-		log.Fatalf("http request is nil")
+		log.Fatal("http request is nil")
 	}
 	if len(config.Token) > 0 {
-		log.Debugf("bearer token provided, setting the Authorization header")
+		log.Debug("bearer token provided, setting the Authorization header")
 		request.Header.Set("Authorization", "Bearer "+config.Token)
 		return nil
 	}
 
 	if len(config.Username) > 0 {
-		log.Debugf("username provided, proceeding to basic auth")
+		log.Debug("username provided, proceeding to basic auth")
 		request.SetBasicAuth(config.Username, config.Password)
 		return nil
 	}
 
-	log.Infof("no credentials provided, no Authorization header is set ")
+	log.Info("no credentials provided, no Authorization header is set ")
 	return nil
 }
 
@@ -233,17 +234,17 @@ func deleteCluster(config *Config) bool {
 	url := fmt.Sprintf("%s/clusters/%s?field=name", config.Endpoint, config.Cluster.Name)
 	resp := config.apiCall(url, http.MethodDelete, nil)
 
-	if resp.StatusCode == 202 {
-		log.Infof("Cluster will be deleted")
+	if resp.StatusCode == http.StatusAccepted {
+		log.Infof("cluster [%s] is being deleted", config.Cluster.Name)
 		return true
 	}
 
-	if resp.StatusCode == 404 {
-		log.Errorf("Unable to delete cluster")
+	if resp.StatusCode == http.StatusNotFound {
+		log.Infof("cluster [%s] not found", config.Cluster.Name)
 		return false
 	}
 
-	log.Fatalf("Unexpected error %+v", resp)
+	log.Fatalf("error while deleting cluster %+v", resp)
 	return false
 }
 
@@ -276,8 +277,8 @@ func createCluster(config *Config) (bool, error) {
 func isHelmReady(config *Config) bool {
 	url := fmt.Sprintf("%s/clusters/%s/deployments?field=name", config.Endpoint, config.Cluster.Name)
 	resp := config.apiCall(url, http.MethodHead, nil)
-	log.Debugf("checking tiller. received response status code: [%s]", resp.StatusCode)
-	
+	log.Debugf("checking tiller. received response status code: [%d]", resp.StatusCode)
+
 	switch resp.StatusCode {
 	case http.StatusOK:
 		log.Debugf("helm is ready ...")
@@ -315,7 +316,7 @@ func deploymentExists(config *Config) bool {
 		log.Debugf("(deployment exists req) ignored response status code [%d] ", resp.StatusCode)
 	}
 
-	log.Fatalf("Unexpected error %+v", resp)
+	log.Fatalf("error while checking deployment %+v", resp)
 	return false
 }
 
@@ -338,7 +339,7 @@ func clusterExists(config *Config) bool {
 		log.Debugf("(cluster status req) ignored response code : [%s] ", resp.StatusCode)
 	}
 
-	log.Fatalf("Unexpected error %+v", resp)
+	log.Fatalf("error while checking cluster existence %+v", resp)
 	return false
 }
 
@@ -357,31 +358,33 @@ func dumpClusterConfig(plugin *Plugin) bool {
 		err := json.NewDecoder(resp.Body).Decode(&result)
 
 		if err != nil {
-			log.Fatalf("Json parse error: [%s]", err)
+			log.Fatalf("error while parsing JSON: [%s]", err)
 			return false
 		}
 
-		err = os.MkdirAll(build.Path+"/.kube/", 0755)
+		wsConfigDir := path.Join(build.Path, ".kube")
+		err = os.MkdirAll(wsConfigDir, 0755)
 
 		if err != nil {
-			log.Fatalf("Unable to create .kube dir: %s", err)
+			log.Fatalf("unable to create dir: [%s], error: [%s]", wsConfigDir, err)
 			return false
 		}
 
-		err = ioutil.WriteFile(build.Path+"/.kube/config", []byte(result.Data), 0666)
+		wsConfigFile := path.Join(wsConfigDir, "config")
+		err = ioutil.WriteFile(wsConfigFile, []byte(result.Data), 0666)
 
 		if err != nil {
-			log.Fatalf("File write error: %s", err)
+			log.Fatalf("error while writing config file: [%s], error [%s]", wsConfigFile, err)
 			return false
 		}
 
-		log.Debugf("export KUBECONFIG=%s", build.Path+"/.kube/config")
-		log.Infof("Write .kube/config to workspace")
+		log.Debugf("export KUBECONFIG=%s", wsConfigFile)
+		log.Infof("configuration written to workspace: [%s]", wsConfigFile)
 
 		return true
 	}
 
-	log.Fatalf("Unexpected error %+v", resp)
+	log.Fatalf("error while dumping configuration: %+v", resp)
 	return false
 }
 
@@ -399,7 +402,7 @@ func installDeployment(config *Config) bool {
 		return true
 	}
 
-	log.Fatalf("Unexpected error %+v", resp)
+	log.Fatalf("error while installing deployment: %+v", resp)
 	return false
 }
 
@@ -413,10 +416,10 @@ func deleteDeployment(config *Config) bool {
 	resp := config.apiCall(url, http.MethodDelete, bytes.NewBuffer(param))
 
 	if resp.StatusCode == http.StatusOK {
-		log.Infof("Deployment [%s] is being deleted", config.Deployment.Name)
+		log.Infof("deployment [%s] is being deleted", config.Deployment.Name)
 		return true
 	}
 
-	log.Fatalf("Unexpected error %+v", resp)
+	log.Fatalf("error while deleting deployment %+v", resp)
 	return false
 }
