@@ -395,6 +395,8 @@ func installDeployment(config *Config) bool {
 	url := fmt.Sprintf("%s/clusters/%s/deployments?field=name", config.Endpoint, config.Cluster.Name)
 	param, _ := json.Marshal(config.Deployment)
 
+	log.Debugf("install deployment request body: [%s]", param)
+
 	resp := config.apiCall(url, http.MethodPost, bytes.NewBuffer(param))
 
 	if resp.StatusCode == http.StatusCreated {
