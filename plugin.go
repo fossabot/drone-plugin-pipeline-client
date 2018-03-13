@@ -80,7 +80,7 @@ type (
 
 	Deployment struct {
 		Name        string                 `json:"name"`
-		ReleaseName string                 `json:"releasename"`
+		ReleaseName string                 `json:"release_name"`
 		State       string                 `json:"state"`
 		Values      map[string]interface{} `json:"values"`
 	}
