@@ -8,7 +8,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"net/http/httputil"
 	"os"
 	"time"
 
@@ -218,11 +217,6 @@ func (config *Config) apiCall(url string, method string, body io.Reader) *http.R
 	if err != nil {
 		log.Fatalf("failed to call [%s] on [%s] , error: [%s]", method, url, err.Error())
 	}
-
-	debugReq, _ := httputil.DumpRequest(req, true)
-	log.Debugf("Request %s", debugReq)
-	debugResp, _ := httputil.DumpResponse(resp, true)
-	log.Debugf("Response %s", debugResp)
 
 	defer resp.Body.Close()
 	return resp
