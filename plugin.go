@@ -218,7 +218,6 @@ func (config *Config) apiCall(url string, method string, body io.Reader) *http.R
 		log.Fatalf("failed to call [%s] on [%s] , error: [%s]", method, url, err.Error())
 	}
 
-	defer resp.Body.Close()
 	return resp
 }
 
@@ -227,6 +226,7 @@ func deleteCluster(config *Config) bool {
 
 	url := fmt.Sprintf("%s/clusters/%s?field=name", config.Endpoint, config.Cluster.Name)
 	resp := config.apiCall(url, http.MethodDelete, nil)
+	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusAccepted {
 		log.Infof("cluster [%s] is being deleted", config.Cluster.Name)
@@ -254,6 +254,7 @@ func createCluster(config *Config) (bool, error) {
 	}
 
 	resp := config.apiCall(url, http.MethodPost, bytes.NewBuffer(param))
+	defer resp.Body.Close()
 
 	switch resp.StatusCode {
 	case http.StatusOK: // 200
@@ -271,6 +272,7 @@ func createCluster(config *Config) (bool, error) {
 func isHelmReady(config *Config) bool {
 	url := fmt.Sprintf("%s/clusters/%s/deployments?field=name", config.Endpoint, config.Cluster.Name)
 	resp := config.apiCall(url, http.MethodHead, nil)
+	defer resp.Body.Close()
 	log.Debugf("checking tiller. received response status code: [%d]", resp.StatusCode)
 
 	switch resp.StatusCode {
@@ -295,6 +297,7 @@ func isHelmReady(config *Config) bool {
 func deploymentExists(config *Config) bool {
 	url := fmt.Sprintf("%s/clusters/%s/deployments/%s?field=name", config.Endpoint, config.Cluster.Name, config.Deployment.ReleaseName)
 	resp := config.apiCall(url, http.MethodHead, nil)
+	defer resp.Body.Close()
 
 	switch resp.StatusCode {
 	case http.StatusOK: //200
@@ -317,6 +320,7 @@ func deploymentExists(config *Config) bool {
 func clusterExists(config *Config) bool {
 	url := fmt.Sprintf("%s/clusters/%s?field=name", config.Endpoint, config.Cluster.Name)
 	resp := config.apiCall(url, http.MethodHead, nil)
+	defer resp.Body.Close()
 
 	log.Debugf("response status code : [%d] ", resp.StatusCode)
 	switch resp.StatusCode {
@@ -342,7 +346,6 @@ func dumpClusterConfig(plugin *Plugin) bool {
 	build := plugin.Build
 	url := fmt.Sprintf("%s/clusters/%s/config?field=name", config.Endpoint, config.Cluster.Name)
 	resp := config.apiCall(url, http.MethodGet, nil)
-
 	defer resp.Body.Close()
 
 	result := ConfigResponse{}
@@ -392,6 +395,8 @@ func installDeployment(config *Config) bool {
 	log.Debugf("install deployment request body: [%s]", param)
 
 	resp := config.apiCall(url, http.MethodPost, bytes.NewBuffer(param))
+	defer resp.Body.Close()
+
 
 	if resp.StatusCode == http.StatusCreated {
 		log.Infof("deployment [%s] is being installed", config.Deployment.Name)
@@ -410,6 +415,7 @@ func deleteDeployment(config *Config) bool {
 	param, _ := json.Marshal(config.Deployment)
 
 	resp := config.apiCall(url, http.MethodDelete, bytes.NewBuffer(param))
+	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
 		log.Infof("deployment [%s] is being deleted", config.Deployment.Name)
