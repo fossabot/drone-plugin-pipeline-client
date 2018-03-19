@@ -24,12 +24,12 @@ var (
 
 	defaultInstanceType = map[string]string{
 		"amazon": "m4.xlarge",       // 4 vCPU, 16 GB RAM, General Purpose
-		"azure":  "Standard_D4s_v3", // 4 vCPU, 16 GB RAM, General Purpose
+		"azure":  "Standard_B4ms",   // 4 vCPU, 16 GB RAM, Burstable VM
 		"google": "n1-standard-4",   // 4 vCPUs 15 GB RAM. Standard machine
 	}
 	defaultClusterLocation = map[string]string{
 		"amazon": "eu-west-1",
-		"azure":  "westeurope",
+		"azure":  "eastus",
 		"google": "us-central1-a",
 	}
 )
