@@ -345,7 +345,6 @@ func main() {
 			Name:   "plugin.deployment.release_name",
 			Usage:  "Specific deployment release name",
 			EnvVar: "PLUGIN_DEPLOYMENT_RELEASE_NAME",
-			Value:  "default",
 		},
 		cli.StringFlag{
 			Name:   "plugin.deployment.state",
@@ -379,7 +378,7 @@ func main() {
 			Name:   "plugin.google.gke.version",
 			Usage:  "The kubernetes version of the GKE",
 			EnvVar: "PLUGIN_GOOGLE_GKE_VERSION",
-			Value:  "1.8.7-gke.0",
+			Value:  "1.9.4-gke.1",
 		},
 		cli.IntFlag{
 			Name:   "plugin.google.node.count",
