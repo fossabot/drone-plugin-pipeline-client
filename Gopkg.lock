@@ -11,7 +11,7 @@
     "components/google",
     "constants"
   ]
-  revision = "890b8dd35e85636395c1ae9568a9660dad6c5e42"
+  revision = "b1204fce5fb585a1f4f6215acd9aaa424f7269d4"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -55,8 +55,8 @@
 [[projects]]
   name = "github.com/sirupsen/logrus"
   packages = ["."]
-  revision = "d682213848ed68c0a260ca37d6dd5ace8423f5ba"
-  version = "v1.0.4"
+  revision = "c155da19408a8799da419ed3eeb0cb5db0ad5dbc"
+  version = "v1.0.5"
 
 [[projects]]
   name = "github.com/stretchr/testify"
@@ -74,7 +74,7 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
-  revision = "91a49db82a88618983a78a06c1cbd4e00ab749ab"
+  revision = "c3a3ad6d03f7a915c0f7e194b7152974bb73d287"
 
 [[projects]]
   branch = "master"
@@ -83,7 +83,7 @@
     "unix",
     "windows"
   ]
-  revision = "dd2ff4accc098aceecb86b36eaa7829b2a17b1c9"
+  revision = "01acb38716e021ed1fc03a602bdb5838e1358c5e"
 
 [[projects]]
   name = "gopkg.in/go-playground/validator.v9"

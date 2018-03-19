@@ -3,6 +3,7 @@ package google
 import (
 	"github.com/banzaicloud/banzai-types/constants"
 	"github.com/pkg/errors"
+	"regexp"
 )
 
 type CreateClusterGoogle struct {
@@ -47,6 +48,14 @@ func (g *CreateClusterGoogle) Validate() error {
 		g.Master = &GoogleMaster{}
 	}
 
+	if !isValidVersion(g.Node.Version) || !isValidVersion(g.Master.Version) {
+		return constants.ErrorWrongKubernetesVersion
+	}
+
+	if g.Master.Version != g.Node.Version {
+		return constants.ErrorDifferentKubernetesVersion
+	}
+
 	if g.Node.Count == 0 {
 		g.Node.Count = constants.GoogleDefaultNodeCount
 	}
@@ -63,10 +72,30 @@ func (a *UpdateClusterGoogle) Validate() error {
 		return errors.New("'google' field is empty")
 	}
 
+	// check version
+	if (a.GoogleMaster != nil && !isValidVersion(a.GoogleMaster.Version)) ||
+		(a.GoogleNode != nil && !isValidVersion(a.GoogleNode.Version)) {
+		return constants.ErrorWrongKubernetesVersion
+	}
+
+	// check version equality
+	if a.GoogleMaster != nil && a.GoogleNode != nil && a.GoogleMaster.Version != a.GoogleNode.Version {
+		return constants.ErrorDifferentKubernetesVersion
+	}
+
 	return nil
 }
 
 type ClusterProfileGoogle struct {
 	Master *GoogleMaster `json:"master,omitempty"`
 	Node   *GoogleNode   `json:"node,omitempty"`
+}
+
+func isValidVersion(version string) bool {
+	if len(version) == 0 {
+		return true
+	}
+
+	isOk, _ := regexp.MatchString("^[1-9]\\.([8-9]\\d*|[1-9]\\d+)|^[1-9]\\d+\\.|^[2-9]\\.", version)
+	return isOk
 }
