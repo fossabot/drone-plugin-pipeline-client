@@ -23,9 +23,9 @@ var (
 	defaultAmazonSpotPrice string = "0.2" //spot price for the default region/instance type
 
 	defaultInstanceType = map[string]string{
-		"amazon": "m4.xlarge",       // 4 vCPU, 16 GB RAM, General Purpose
-		"azure":  "Standard_B4ms",   // 4 vCPU, 16 GB RAM, Burstable VM
-		"google": "n1-standard-4",   // 4 vCPUs 15 GB RAM. Standard machine
+		"amazon": "m4.xlarge",     // 4 vCPU, 16 GB RAM, General Purpose
+		"azure":  "Standard_B4ms", // 4 vCPU, 16 GB RAM, Burstable VM
+		"google": "n1-standard-4", // 4 vCPUs 15 GB RAM. Standard machine
 	}
 	defaultClusterLocation = map[string]string{
 		"amazon": "eu-west-1",
@@ -429,7 +429,7 @@ func run(c *cli.Context) error {
 	}
 
 	items := map[string]string{}
-	itemForTemplate := map[string]string{}
+
 	for _, element := range os.Environ() {
 		variable := strings.SplitN(element, "=", 2)
 
@@ -437,9 +437,6 @@ func run(c *cli.Context) error {
 			items[variable[0]] = variable[1]
 		}
 
-		if !strings.Contains(variable[0], "PLUGIN") && !excludeVars[variable[0]] {
-			itemForTemplate[variable[0]] = variable[1]
-		}
 	}
 
 	if _, err := os.Stat(".env"); os.IsNotExist(err) {
@@ -454,7 +451,7 @@ func run(c *cli.Context) error {
 
 	if deploymentValStr != "" {
 
-		err := json.Unmarshal([]byte(processDeploymentSecrets(deploymentValStr, itemForTemplate)), &deploymentValues)
+		err := json.Unmarshal([]byte(processDeploymentSecrets(deploymentValStr, items)), &deploymentValues)
 
 		log.Debugf("deployment values: %+v", deploymentValues)
 
