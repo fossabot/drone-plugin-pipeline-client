@@ -19,7 +19,7 @@ import (
 
 var (
 	version                string = ""
-	defaultAmazonImage     string = "ami-811f67f8"
+	defaultAmazonImage     string = "ami-6202561b"
 	defaultAmazonSpotPrice string = "0.2" //spot price for the default region/instance type
 
 	defaultInstanceType = map[string]string{
