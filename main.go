@@ -330,6 +330,7 @@ func main() {
 			Name:   "plugin.amazon.master.image",
 			Usage:  "Amazon machine image id",
 			EnvVar: "PLUGIN_AMAZON_MASTER_IMAGE",
+			Value:  defaultAmazonImage,
 		},
 		cli.StringFlag{
 			Name:   "plugin.amazon.master.instance_type",
