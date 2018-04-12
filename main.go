@@ -9,12 +9,14 @@ import (
 	"text/template"
 
 	. "github.com/banzaicloud/banzai-types/components"
-	"github.com/banzaicloud/banzai-types/components/amazon"
-	"github.com/banzaicloud/banzai-types/components/azure"
-	"github.com/banzaicloud/banzai-types/components/google"
 	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
+	"github.com/banzaicloud/banzai-types/components/amazon"
+	"github.com/banzaicloud/banzai-types/components/azure"
+	"github.com/banzaicloud/banzai-types/components/google"
+	"github.com/banzaicloud/banzai-types/components/dummy"
+	"github.com/banzaicloud/banzai-types/components/byoc"
 )
 
 var (
@@ -45,7 +47,6 @@ func main() {
 	app.Version = fmt.Sprintf("%s", version)
 	app.EnableBashCompletion = true
 	app.Flags = []cli.Flag{
-
 		//
 		// repo args
 		//
@@ -392,11 +393,16 @@ func main() {
 			Usage:  "The service account the  cluster instance are run as",
 			EnvVar: "PLUGIN_GOOGLE_SERVICE_ACCOUNT",
 		},
+		cli.StringFlag{
+			Name:   "plugin.secret.id",
+			Usage:  "The secret id",
+			EnvVar: "PLUGIN_SECRET_ID",
+		},
 	}
 	app.Run(os.Args)
 }
 
-func settingUpDefaults(c *cli.Context) {
+func setDefaults(c *cli.Context) {
 
 	provider := c.String("plugin.cluster.provider")
 
@@ -445,7 +451,7 @@ func run(c *cli.Context) error {
 	}
 
 	processLogLevel(c)
-	settingUpDefaults(c)
+	setDefaults(c)
 
 	var deploymentValues map[string]interface{}
 	var deploymentValStr = c.String("plugin.deployment.values")
@@ -507,10 +513,13 @@ func run(c *cli.Context) error {
 					Location:         c.String("plugin.cluster.location"),
 					Cloud:            c.String("plugin.cluster.provider"),
 					NodeInstanceType: c.String("plugin.node.instance_type"),
+					SecretId:         c.String("plugin.secret.id"),
 					Properties: struct {
 						CreateClusterAmazon *amazon.CreateClusterAmazon `json:"amazon,omitempty"`
 						CreateClusterAzure  *azure.CreateClusterAzure   `json:"azure,omitempty"`
 						CreateClusterGoogle *google.CreateClusterGoogle `json:"google,omitempty"`
+						CreateClusterDummy  *dummy.CreateClusterDummy   `json:"dummy,omitempty"`
+						CreateBYOC          *byoc.CreateBYOC            `json:"byoc,omitempty"`
 					}{
 						CreateClusterAmazon: &amazon.CreateClusterAmazon{
 							Node: &amazon.CreateAmazonNode{
@@ -537,11 +546,16 @@ func run(c *cli.Context) error {
 							Master: &google.GoogleMaster{
 								Version: c.String("plugin.google.gke.version"),
 							},
-							Node: &google.GoogleNode{
-								Version: c.String("plugin.google.gke.version"),
-								Count:   c.Int("plugin.google.node.count"),
+							NodeVersion: c.String("plugin.google.gke.version"),
+							NodePools: map[string]*google.GoogleNodePool{
+								"default-node-pool": &google.GoogleNodePool{
+									NodeInstanceType: c.String("plugin.node.instance_type"),
+									Count:            c.Int("plugin.google.node.count"),
+								},
 							},
 						},
+						CreateClusterDummy: nil,
+						CreateBYOC:         nil,
 					},
 				},
 				State: c.String("plugin.cluster.state"),
@@ -587,7 +601,9 @@ func (plugin *Plugin) processServiceAccount(c *cli.Context) {
 	serviceAccount := c.String("plugin.google.service.account")
 
 	if len(serviceAccount) > 0 {
-		plugin.Config.Cluster.Properties.CreateClusterGoogle.Node.ServiceAccount = serviceAccount
+		for i, _ := range plugin.Config.Cluster.Properties.CreateClusterGoogle.NodePools {
+			plugin.Config.Cluster.Properties.CreateClusterGoogle.NodePools[i].ServiceAccount = serviceAccount
+		}
 	}
 }
 

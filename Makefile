@@ -33,4 +33,4 @@ push:
 
 run-dev:
 	. .env
-	go run $(wildcard *.go)
+	go run main.go plugin.go

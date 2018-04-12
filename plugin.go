@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,6 +14,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/go-playground/validator.v9"
 	"path"
+	"github.com/pkg/errors"
 )
 
 type (
@@ -70,6 +70,7 @@ type (
 		Password   string
 		Endpoint   string
 		Token      string
+		OrgId      int
 	}
 
 	CustomCluster struct {
@@ -92,8 +93,10 @@ type (
 	}
 )
 
-const createdState = "created"
-const deletedState = "deleted"
+const (
+	createdState = "created"
+	deletedState = "deleted"
+)
 
 var validate *validator.Validate
 
@@ -105,13 +108,18 @@ func (p *Plugin) Exec() error {
 		for _, v := range err.(validator.ValidationErrors) {
 			log.Errorf("[%s] field validation error (%+v)", v.Field(), v)
 		}
-		return errors.New("validation error(s)")
+		return errors.Wrap(err, "validation error(s)")
 	}
 
+	orgId, err := p.GetOrgId()
+	if err != nil {
+		return errors.Wrap(err, "could not retrieve org id")
+	}
+	log.Debugf("retrieved org id: [ %d ]", orgId)
 	log.Infof("cluster desired state: [%s]", p.Config.Cluster.State)
 
-	if p.Config.Cluster.State == createdState && !clusterExists(&p.Config) {
-		_, err := createCluster(&p.Config)
+	if p.Config.Cluster.State == createdState && !p.ClusterExists() {
+		_, err := p.createCluster()
 
 		if err != nil {
 			log.Fatalf("cluster creation failed: [%s]", err.Error())
@@ -120,8 +128,8 @@ func (p *Plugin) Exec() error {
 
 		log.Infof("waiting for the cluster [%s] to start ...", p.Config.Cluster.Name)
 
-		for ok := true; ok; ok = !clusterExists(&p.Config) {
-			ok = !clusterExists(&p.Config)
+		for ok := true; ok; ok = !p.ClusterExists() {
+			ok = !p.ClusterExists()
 			if ok {
 				time.Sleep(5 * time.Second)
 			}
@@ -130,16 +138,16 @@ func (p *Plugin) Exec() error {
 
 	} else if p.Config.Cluster.State == createdState {
 		log.Infof("using existing cluster: [%s]", p.Config.Cluster.Name)
-	} else if p.Config.Cluster.State == deletedState && clusterExists(&p.Config) {
-		deleteCluster(&p.Config)
+	} else if p.Config.Cluster.State == deletedState && p.ClusterExists() {
+		p.deleteCluster()
 		return nil
 	} else {
 		return nil
 	}
 
 	log.Info("setting up helm ...")
-	for ok := true; ok; ok = !isHelmReady(&p.Config) {
-		ok = !isHelmReady(&p.Config)
+	for ok := true; ok; ok = !p.isHelmReady() {
+		ok = !p.isHelmReady()
 		if ok {
 			time.Sleep(5 * time.Second)
 		}
@@ -147,24 +155,24 @@ func (p *Plugin) Exec() error {
 	log.Info("helm is ready.")
 
 	if p.Config.Cluster.State == createdState {
-		dumpClusterConfig(p)
+		p.dumpClusterConfig()
 	}
 
 	if len(p.Config.Deployment.Name) > 0 {
 		log.Infof("checking deployment [%s]", p.Config.Deployment.Name)
-		if p.Config.Deployment.State == createdState && !deploymentExists(&p.Config) {
-			installDeployment(&p.Config)
+		if p.Config.Deployment.State == createdState && !p.deploymentExists() {
+			p.installDeployment()
 
-			for ok := true; ok; ok = !deploymentExists(&p.Config) {
-				ok = !deploymentExists(&p.Config)
+			for ok := true; ok; ok = !p.deploymentExists() {
+				ok = !p.deploymentExists()
 				if ok {
 					time.Sleep(5 * time.Second)
 				}
 			}
 		} else if p.Config.Deployment.State == createdState {
 			log.Infof("deployment [%s] already exists, nothing to do", p.Config.Deployment.Name)
-		} else if p.Config.Deployment.State == deletedState && deploymentExists(&p.Config) {
-			deleteDeployment(&p.Config)
+		} else if p.Config.Deployment.State == deletedState && p.deploymentExists() {
+			p.deleteDeployment()
 		}
 	}
 
@@ -221,20 +229,20 @@ func (config *Config) apiCall(url string, method string, body io.Reader) *http.R
 	return resp
 }
 
-func deleteCluster(config *Config) bool {
-	log.Infof("Trying to delete %s cluster\n", config.Cluster.Name)
+func (p *Plugin) deleteCluster() bool {
+	log.Infof("initiating delete for cluster [ %s ]", p.Config.Cluster.Name)
 
-	url := fmt.Sprintf("%s/clusters/%s?field=name", config.Endpoint, config.Cluster.Name)
-	resp := config.apiCall(url, http.MethodDelete, nil)
+	url := fmt.Sprintf("%s/orgs/%d/clusters/%s?field=name", p.Config.Endpoint, p.Config.OrgId, p.Config.Cluster.Name)
+	resp := p.Config.apiCall(url, http.MethodDelete, nil)
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusAccepted {
-		log.Infof("cluster [%s] is being deleted", config.Cluster.Name)
+		log.Infof("cluster [%s] is being deleted", p.Config.Cluster.Name)
 		return true
 	}
 
 	if resp.StatusCode == http.StatusNotFound {
-		log.Infof("cluster [%s] not found", config.Cluster.Name)
+		log.Infof("cluster [%s] not found", p.Config.Cluster.Name)
 		return false
 	}
 
@@ -242,23 +250,23 @@ func deleteCluster(config *Config) bool {
 	return false
 }
 
-func createCluster(config *Config) (bool, error) {
-	log.Infof("start creating cluster with name: [%s]", config.Cluster.Name)
+func (p *Plugin) createCluster() (bool, error) {
+	log.Infof("start creating cluster with name: [%s]", p.Config.Cluster.Name)
 
-	url := fmt.Sprintf("%s/clusters", config.Endpoint)
-	param, err := json.Marshal(config.Cluster)
+	url := fmt.Sprintf("%s/orgs/%d/clusters", p.Config.Endpoint, p.Config.OrgId)
+	param, err := json.Marshal(p.Config.Cluster)
 
 	if err != nil {
 		log.Errorf("could not process cluster details. err: [%s]", err.Error())
 		return false, err
 	}
 
-	resp := config.apiCall(url, http.MethodPost, bytes.NewBuffer(param))
+	resp := p.Config.apiCall(url, http.MethodPost, bytes.NewBuffer(param))
 	defer resp.Body.Close()
 
 	switch resp.StatusCode {
 	case http.StatusOK: // 200
-		log.Infof("cluster [%s] is being created", config.Cluster.Name)
+		log.Infof("cluster [%s] is being created", p.Config.Cluster.Name)
 		return true, nil
 	case http.StatusBadRequest: // 400
 		return false, errors.New(fmt.Sprintf("bad request while creating cluster [%s]", resp.Status))
@@ -269,9 +277,9 @@ func createCluster(config *Config) (bool, error) {
 
 }
 
-func isHelmReady(config *Config) bool {
-	url := fmt.Sprintf("%s/clusters/%s/deployments?field=name", config.Endpoint, config.Cluster.Name)
-	resp := config.apiCall(url, http.MethodHead, nil)
+func (p *Plugin) isHelmReady() bool {
+	url := fmt.Sprintf("%s/orgs/%d/clusters/%s/deployments?field=name", p.Config.Endpoint, p.Config.OrgId, p.Config.Cluster.Name)
+	resp := p.Config.apiCall(url, http.MethodHead, nil)
 	defer resp.Body.Close()
 	log.Debugf("checking tiller. received response status code: [%d]", resp.StatusCode)
 
@@ -294,20 +302,22 @@ func isHelmReady(config *Config) bool {
 	return false
 }
 
-func deploymentExists(config *Config) bool {
-	url := fmt.Sprintf("%s/clusters/%s/deployments/%s?field=name", config.Endpoint, config.Cluster.Name, config.Deployment.ReleaseName)
-	resp := config.apiCall(url, http.MethodHead, nil)
+func (p *Plugin) deploymentExists() bool {
+
+	url := fmt.Sprintf("%s/orgs/%d/clusters/%s/deployments/%s?field=name", p.Config.Endpoint, p.Config.OrgId,
+		p.Config.Cluster.Name, p.Config.Deployment.ReleaseName)
+	resp := p.Config.apiCall(url, http.MethodHead, nil)
 	defer resp.Body.Close()
 
 	switch resp.StatusCode {
 	case http.StatusOK: //200
-		log.Debugf("deployment [%s] found", config.Deployment.Name)
+		log.Debugf("deployment [%s] found", p.Config.Deployment.Name)
 		return true
 	case http.StatusNotFound: // 404
-		log.Debugf("deployment [%s] is not found", config.Deployment.Name)
+		log.Debugf("deployment [%s] is not found", p.Config.Deployment.Name)
 		return false
 	case http.StatusNoContent: //204
-		log.Debugf("deployment [%s] is not yet ready", config.Deployment.Name)
+		log.Debugf("deployment [%s] is not yet ready", p.Config.Deployment.Name)
 		return false
 	default:
 		log.Debugf("(deployment exists req) ignored response status code [%d] ", resp.StatusCode)
@@ -317,21 +327,21 @@ func deploymentExists(config *Config) bool {
 	return false
 }
 
-func clusterExists(config *Config) bool {
-	url := fmt.Sprintf("%s/clusters/%s?field=name", config.Endpoint, config.Cluster.Name)
-	resp := config.apiCall(url, http.MethodHead, nil)
+func (p *Plugin) ClusterExists() bool {
+	url := fmt.Sprintf("%s/orgs/%d/clusters/%s?field=name", p.Config.Endpoint, p.Config.OrgId, p.Config.Cluster.Name)
+	resp := p.Config.apiCall(url, http.MethodHead, nil)
 	defer resp.Body.Close()
 
 	log.Debugf("response status code : [%d] ", resp.StatusCode)
 	switch resp.StatusCode {
 	case http.StatusOK:
-		log.Debugf("cluster [%s] exists.", config.Cluster.Name)
+		log.Debugf("cluster [%s] exists.", p.Config.Cluster.Name)
 		return true
 	case http.StatusNotFound:
-		log.Debugf("cluster [%s] not found.", config.Cluster.Name)
+		log.Debugf("cluster [%s] not found.", p.Config.Cluster.Name)
 		return false
 	case http.StatusNoContent:
-		log.Debugf("cluster [%s] not yet alive.", config.Cluster.Name)
+		log.Debugf("cluster [%s] not yet alive.", p.Config.Cluster.Name)
 		return false
 	default:
 		log.Debugf("(cluster status req) ignored response code : [%s] ", resp.StatusCode)
@@ -341,11 +351,9 @@ func clusterExists(config *Config) bool {
 	return false
 }
 
-func dumpClusterConfig(plugin *Plugin) bool {
-	config := plugin.Config
-	build := plugin.Build
-	url := fmt.Sprintf("%s/clusters/%s/config?field=name", config.Endpoint, config.Cluster.Name)
-	resp := config.apiCall(url, http.MethodGet, nil)
+func (p *Plugin) dumpClusterConfig() bool {
+	url := fmt.Sprintf("%s/orgs/%d/clusters/%s/config?field=name", p.Config.Endpoint, p.Config.OrgId, p.Config.Cluster.Name)
+	resp := p.Config.apiCall(url, http.MethodGet, nil)
 	defer resp.Body.Close()
 
 	result := ConfigResponse{}
@@ -359,7 +367,7 @@ func dumpClusterConfig(plugin *Plugin) bool {
 			return false
 		}
 
-		wsConfigDir := path.Join(build.Path, ".kube")
+		wsConfigDir := path.Join(p.Build.Path, ".kube")
 		err = os.MkdirAll(wsConfigDir, 0755)
 
 		if err != nil {
@@ -385,21 +393,20 @@ func dumpClusterConfig(plugin *Plugin) bool {
 	return false
 }
 
-func installDeployment(config *Config) bool {
+func (p *Plugin) installDeployment() bool {
 
-	log.Infof("installing deployment [%s]", config.Deployment.Name)
+	log.Infof("installing deployment [%s]", p.Config.Deployment.Name)
 
-	url := fmt.Sprintf("%s/clusters/%s/deployments?field=name", config.Endpoint, config.Cluster.Name)
-	param, _ := json.Marshal(config.Deployment)
+	url := fmt.Sprintf("%s/orgs/%d/clusters/%s/deployments?field=name", p.Config.Endpoint, p.Config.OrgId, p.Config.Cluster.Name)
+	param, _ := json.Marshal(p.Config.Deployment)
 
 	log.Debugf("install deployment request body: [%s]", param)
 
-	resp := config.apiCall(url, http.MethodPost, bytes.NewBuffer(param))
+	resp := p.Config.apiCall(url, http.MethodPost, bytes.NewBuffer(param))
 	defer resp.Body.Close()
 
-
 	if resp.StatusCode == http.StatusCreated {
-		log.Infof("deployment [%s] is being installed", config.Deployment.Name)
+		log.Infof("deployment [%s] is being installed", p.Config.Deployment.Name)
 		return true
 	}
 
@@ -407,21 +414,76 @@ func installDeployment(config *Config) bool {
 	return false
 }
 
-func deleteDeployment(config *Config) bool {
+func (p *Plugin) deleteDeployment() bool {
 
-	log.Infof("deleting deployment [%s]", config.Deployment.Name)
+	log.Infof("initiating delete for deployment [%s]", p.Config.Deployment.Name)
 
-	url := fmt.Sprintf("%s/clusters/%s/deployments/%s?field=name", config.Endpoint, config.Cluster.Name, config.Deployment.ReleaseName)
-	param, _ := json.Marshal(config.Deployment)
+	url := fmt.Sprintf("%s/orgs/%d/clusters/%s/deployments/%s?field=name", p.Config.Endpoint, p.Config.OrgId,
+		p.Config.Cluster.Name, p.Config.Deployment.ReleaseName)
+	param, _ := json.Marshal(p.Config.Deployment)
 
-	resp := config.apiCall(url, http.MethodDelete, bytes.NewBuffer(param))
+	resp := p.Config.apiCall(url, http.MethodDelete, bytes.NewBuffer(param))
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
-		log.Infof("deployment [%s] is being deleted", config.Deployment.Name)
+		log.Infof("deployment [%s] is being deleted", p.Config.Deployment.Name)
 		return true
 	}
 
 	log.Fatalf("error while deleting deployment %+v", resp)
 	return false
+}
+
+// GetOrgId retrieves the identifier of the GitHub organization and sets it into the plugin configuration for further reuse
+func (p *Plugin) GetOrgId() (int, error) {
+
+	if p.Config.OrgId != 0 {
+		log.Debugf("found cached org id: [ %d ]", p.Config.OrgId)
+		return p.Config.OrgId, nil
+	}
+
+	log.Debugf("looking up id for org: [ %s ]", p.Repo.Owner)
+	url := fmt.Sprintf("%s/orgs?field=name", p.Config.Endpoint)
+	httpResp := p.Config.apiCall(url, http.MethodGet, nil)
+	defer httpResp.Body.Close()
+
+	if httpResp.StatusCode != http.StatusOK {
+		log.Errorf("could not retrieve organizations. cause: [ %s ]", httpResp.Status)
+		return 0, errors.New("could not retrieve organizations." + httpResp.Status)
+	}
+
+	var (
+		orgInfoList []struct {
+			Id   int    `json:"id"`
+			Name string `json:"name"`
+		}
+		bodyBytes []byte
+		err       error
+	)
+
+	bodyBytes, err = ioutil.ReadAll(httpResp.Body)
+	if err != nil {
+		log.Debugf("could not read response body. error: [ %s ] ", err.Error())
+		return 0, err
+	}
+
+	// parsing the data we need from the response
+	log.Debugf("organizations response: [%s]", string(bodyBytes))
+	err = json.Unmarshal(bodyBytes, &orgInfoList)
+	if err != nil {
+		log.Errorf("could not parse orgs response: [%s]", err.Error())
+		return 0, err
+	}
+
+	for _, orgInfo := range orgInfoList {
+
+		if orgInfo.Name == p.Repo.Owner {
+			log.Debugf("found org: [ %s ], with id: [ %d ]", orgInfo.Name, orgInfo.Id)
+			p.Config.OrgId = orgInfo.Id
+			return p.Config.OrgId, nil;
+		}
+	}
+	log.Debugf("could not find organization: [%s]", p.Repo.Owner)
+	return 0, fmt.Errorf("could not find id for organization: [%s]" + p.Repo.Owner)
+
 }
