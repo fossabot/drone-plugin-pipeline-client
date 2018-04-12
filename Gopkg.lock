@@ -8,10 +8,12 @@
     "components",
     "components/amazon",
     "components/azure",
+    "components/byoc",
+    "components/dummy",
     "components/google",
     "constants"
   ]
-  revision = "b1204fce5fb585a1f4f6215acd9aaa424f7269d4"
+  revision = "d36c303373b4ef2960fb1f9d6cc51820e6e8592b"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -25,8 +27,8 @@
     ".",
     "currency"
   ]
-  revision = "e4cbcb5d0652150d40ad0646651076b6bd2be4f6"
-  version = "v0.11.2"
+  revision = "f63010822830b6fe52288ee52d5a1151088ce039"
+  version = "v0.12.1"
 
 [[projects]]
   name = "github.com/go-playground/universal-translator"
@@ -74,7 +76,7 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
-  revision = "c3a3ad6d03f7a915c0f7e194b7152974bb73d287"
+  revision = "f70185d77e8278766928032ee1355e3da47e7181"
 
 [[projects]]
   branch = "master"
@@ -83,17 +85,17 @@
     "unix",
     "windows"
   ]
-  revision = "01acb38716e021ed1fc03a602bdb5838e1358c5e"
+  revision = "3b87a42e500a6dc65dae1a55d0b641295971163e"
 
 [[projects]]
   name = "gopkg.in/go-playground/validator.v9"
   packages = ["."]
-  revision = "1b8c8e19cd250435025214492d9a08411d760fdd"
-  version = "v9.12.0"
+  revision = "14984d91328f9612b58443cbdf4a077d4fd71091"
+  version = "v9.15.0"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "df541e9f67638a1bdaa559eac7ff7871715d6a1921b895858505f9904705846f"
+  inputs-digest = "d9e2d9f0c3b2d013a24d72e44140671152fcc6cead757833e4c3828cfd532697"
   solver-name = "gps-cdcl"
   solver-version = 1

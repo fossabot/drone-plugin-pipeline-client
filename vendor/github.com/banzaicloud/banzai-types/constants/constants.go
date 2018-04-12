@@ -43,8 +43,6 @@ const (
 
 // ### [ Constants to Amazon cluster default values ] ### //
 const (
-	AmazonDefaultNodeImage          = "ami-bdba13c4"
-	AmazonDefaultMasterImage        = "ami-bdba13c4"
 	AmazonDefaultMasterInstanceType = "m4.xlarge"
 	AmazonDefaultNodeMinCount       = 1
 	AmazonDefaultNodeMaxCount       = 1
@@ -53,7 +51,8 @@ const (
 
 // ### [ Constants to Google cluster default values ] ### //
 const (
-	GoogleDefaultNodeCount = 1
+	GoogleDefaultNodeCount    = 1
+	GoogleDefaultNodePoolName = "default-pool"
 )
 
 // ### [ Constants to helm]
@@ -67,6 +66,8 @@ const (
 	Amazon = "amazon"
 	Azure  = "azure"
 	Google = "google"
+	Dummy  = "dummy"
+	BYOC   = "byoc"
 )
 
 // ### [ Constants to table names ] ### //
@@ -75,11 +76,16 @@ const (
 	TableNameAmazonProperties = "amazon_cluster_properties"
 	TableNameAzureProperties  = "azure_cluster_properties"
 	TableNameGoogleProperties = "google_cluster_properties"
+	TableNameGoogleNodePools  = "google_node_pools"
+	TableNameDummyProperties  = "dummy_cluster_properties"
+	TableNameBYOCProperties   = "byoc_cluster_properties"
 )
 
 // ### [ Errors ] ### //
 var (
 	ErrorNotSupportedCloudType      = errors.New("Not supported cloud type")
+	ErrorAmazonClusterNameRegexp    = errors.New("Up to 255 letters (uppercase and lowercase), numbers, hyphens, and underscores are allowed.")
+	ErrorGoogleClusterNameRegexp    = errors.New("Name must start with a lowercase letter followed by up to 40 lowercase letters, numbers, or hyphens, and cannot end with a hyphen.")
 	ErrorAzureClusterNameRegexp     = errors.New("Only numbers, lowercase letters and underscores are allowed under name property. In addition, the value cannot end with an underscore, and must also be less than 32 characters long.")
 	ErrorAzureClusterNameEmpty      = errors.New("The name should not be empty.")
 	ErrorAzureClusterNameTooLong    = errors.New("Cluster name is greater than or equal 32")
@@ -91,4 +97,33 @@ var (
 	ErrorNilCluster                 = errors.New("<nil> cluster")
 	ErrorWrongKubernetesVersion     = errors.New("Wrong kubernetes version for master/nodes. The required minimum kubernetes version is 1.8.x ")
 	ErrorDifferentKubernetesVersion = errors.New("Different kubernetes version for master and nodes")
+	ErrorLocationEmpty              = errors.New("Location field is empty")
+	ErrorNodeInstanceTypeEmpty      = errors.New("NodeInstanceType field is empty")
+	ErrorRequiredZone               = errors.New("Zone is required")
+	ErrorRequiredSecretId           = errors.New("Secret id is required")
+	ErrorCloudInfoK8SNotSupported   = errors.New("Not supported key in case of amazon")
+	ErrorNodePoolNotProvided        = errors.New("At least one 'nodepool' is required for creating or updating a cluster")
+)
+
+// ### [ Keywords ] ###
+const (
+	KeyWorldLocation          = "location"
+	KeyWorldInstanceType      = "instanceType"
+	KeyWorldKubernetesVersion = "k8sVersion"
+)
+
+// ### [ Regexps for cluster names ] ### //
+const (
+	RegexpAWSName = `^[A-z0-9-_]{1,255}$`
+	RegexpAKSName = `^[a-z0-9_]{0,31}[a-z0-9]$`
+	RegexpGKEName = `^[a-z]$|^[a-z][a-z0-9-]{0,38}[a-z0-9]$`
+)
+
+// ### [ Cluster statuses ] ### //
+const (
+	Creating = "CREATING"
+	Running  = "RUNNING"
+	Updating = "UPDATING"
+	Deleting = "DELETING"
+	Error    = "ERROR"
 )
