@@ -9,14 +9,14 @@ import (
 	"text/template"
 
 	. "github.com/banzaicloud/banzai-types/components"
+	"github.com/banzaicloud/banzai-types/components/amazon"
+	"github.com/banzaicloud/banzai-types/components/azure"
+	"github.com/banzaicloud/banzai-types/components/byoc"
+	"github.com/banzaicloud/banzai-types/components/dummy"
+	"github.com/banzaicloud/banzai-types/components/google"
 	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
-	"github.com/banzaicloud/banzai-types/components/amazon"
-	"github.com/banzaicloud/banzai-types/components/azure"
-	"github.com/banzaicloud/banzai-types/components/google"
-	"github.com/banzaicloud/banzai-types/components/dummy"
-	"github.com/banzaicloud/banzai-types/components/byoc"
 )
 
 var (
@@ -35,6 +35,8 @@ var (
 		"google": "us-central1-a",
 	}
 )
+
+const nodePoolName = "default-node-pool"
 
 func main() {
 
@@ -468,6 +470,7 @@ func run(c *cli.Context) error {
 	}
 
 	plugin := Plugin{
+		ApiCall: ApiCall,
 		Repo: Repo{
 			Owner:   c.String("repo.owner"),
 			Name:    c.String("repo.name"),

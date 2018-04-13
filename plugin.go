@@ -11,10 +11,10 @@ import (
 	"time"
 
 	. "github.com/banzaicloud/banzai-types/components"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/go-playground/validator.v9"
 	"path"
-	"github.com/pkg/errors"
 )
 
 type (
@@ -57,10 +57,11 @@ type (
 	}
 
 	Plugin struct {
-		Repo   Repo
-		Build  Build
-		Commit Commit
-		Config Config
+		Repo    Repo
+		Build   Build
+		Commit  Commit
+		Config  Config
+		ApiCall ApiCaller
 	}
 
 	Config struct {
@@ -84,13 +85,13 @@ type (
 		State       string                 `json:"state"`
 		Values      map[string]interface{} `json:"values"`
 	}
-)
 
-type (
 	ConfigResponse struct {
 		Status int    `json:"status"`
 		Data   string `json:"data,omitempty"`
 	}
+
+	ApiCaller func(config *Config, url string, method string, body io.Reader) *http.Response
 )
 
 const (
@@ -200,7 +201,7 @@ func (config *Config) requestAuth(request *http.Request) error {
 	return nil
 }
 
-func (config *Config) apiCall(url string, method string, body io.Reader) *http.Response {
+func ApiCall(config *Config, url string, method string, body io.Reader) *http.Response {
 	log.Debugf("api call args -> url: [%s], method: [%s]", url, method)
 	req, err := http.NewRequest(method, url, body)
 
@@ -233,7 +234,7 @@ func (p *Plugin) deleteCluster() bool {
 	log.Infof("initiating delete for cluster [ %s ]", p.Config.Cluster.Name)
 
 	url := fmt.Sprintf("%s/orgs/%d/clusters/%s?field=name", p.Config.Endpoint, p.Config.OrgId, p.Config.Cluster.Name)
-	resp := p.Config.apiCall(url, http.MethodDelete, nil)
+	resp := p.ApiCall(&p.Config, url, http.MethodDelete, nil)
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusAccepted {
@@ -261,7 +262,7 @@ func (p *Plugin) createCluster() (bool, error) {
 		return false, err
 	}
 
-	resp := p.Config.apiCall(url, http.MethodPost, bytes.NewBuffer(param))
+	resp := p.ApiCall(&p.Config, url, http.MethodPost, bytes.NewBuffer(param))
 	defer resp.Body.Close()
 
 	switch resp.StatusCode {
@@ -279,7 +280,7 @@ func (p *Plugin) createCluster() (bool, error) {
 
 func (p *Plugin) isHelmReady() bool {
 	url := fmt.Sprintf("%s/orgs/%d/clusters/%s/deployments?field=name", p.Config.Endpoint, p.Config.OrgId, p.Config.Cluster.Name)
-	resp := p.Config.apiCall(url, http.MethodHead, nil)
+	resp := p.ApiCall(&p.Config, url, http.MethodHead, nil)
 	defer resp.Body.Close()
 	log.Debugf("checking tiller. received response status code: [%d]", resp.StatusCode)
 
@@ -306,7 +307,7 @@ func (p *Plugin) deploymentExists() bool {
 
 	url := fmt.Sprintf("%s/orgs/%d/clusters/%s/deployments/%s?field=name", p.Config.Endpoint, p.Config.OrgId,
 		p.Config.Cluster.Name, p.Config.Deployment.ReleaseName)
-	resp := p.Config.apiCall(url, http.MethodHead, nil)
+	resp := p.ApiCall(&p.Config, url, http.MethodHead, nil)
 	defer resp.Body.Close()
 
 	switch resp.StatusCode {
@@ -329,7 +330,7 @@ func (p *Plugin) deploymentExists() bool {
 
 func (p *Plugin) ClusterExists() bool {
 	url := fmt.Sprintf("%s/orgs/%d/clusters/%s?field=name", p.Config.Endpoint, p.Config.OrgId, p.Config.Cluster.Name)
-	resp := p.Config.apiCall(url, http.MethodHead, nil)
+	resp := p.ApiCall(&p.Config, url, http.MethodHead, nil)
 	defer resp.Body.Close()
 
 	log.Debugf("response status code : [%d] ", resp.StatusCode)
@@ -353,7 +354,7 @@ func (p *Plugin) ClusterExists() bool {
 
 func (p *Plugin) dumpClusterConfig() bool {
 	url := fmt.Sprintf("%s/orgs/%d/clusters/%s/config?field=name", p.Config.Endpoint, p.Config.OrgId, p.Config.Cluster.Name)
-	resp := p.Config.apiCall(url, http.MethodGet, nil)
+	resp := p.ApiCall(&p.Config, url, http.MethodGet, nil)
 	defer resp.Body.Close()
 
 	result := ConfigResponse{}
@@ -402,7 +403,7 @@ func (p *Plugin) installDeployment() bool {
 
 	log.Debugf("install deployment request body: [%s]", param)
 
-	resp := p.Config.apiCall(url, http.MethodPost, bytes.NewBuffer(param))
+	resp := p.ApiCall(&p.Config, url, http.MethodPost, bytes.NewBuffer(param))
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusCreated {
@@ -422,7 +423,7 @@ func (p *Plugin) deleteDeployment() bool {
 		p.Config.Cluster.Name, p.Config.Deployment.ReleaseName)
 	param, _ := json.Marshal(p.Config.Deployment)
 
-	resp := p.Config.apiCall(url, http.MethodDelete, bytes.NewBuffer(param))
+	resp := p.ApiCall(&p.Config, url, http.MethodDelete, bytes.NewBuffer(param))
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
@@ -444,12 +445,12 @@ func (p *Plugin) GetOrgId() (int, error) {
 
 	log.Debugf("looking up id for org: [ %s ]", p.Repo.Owner)
 	url := fmt.Sprintf("%s/orgs?field=name", p.Config.Endpoint)
-	httpResp := p.Config.apiCall(url, http.MethodGet, nil)
+	httpResp := p.ApiCall(&p.Config, url, http.MethodGet, nil)
 	defer httpResp.Body.Close()
 
 	if httpResp.StatusCode != http.StatusOK {
 		log.Errorf("could not retrieve organizations. cause: [ %s ]", httpResp.Status)
-		return 0, errors.New("could not retrieve organizations." + httpResp.Status)
+		return 0, errors.Errorf("could not retrieve organizations. status: [ %s ]", httpResp.Status)
 	}
 
 	var (
@@ -471,8 +472,8 @@ func (p *Plugin) GetOrgId() (int, error) {
 	log.Debugf("organizations response: [%s]", string(bodyBytes))
 	err = json.Unmarshal(bodyBytes, &orgInfoList)
 	if err != nil {
-		log.Errorf("could not parse orgs response: [%s]", err.Error())
-		return 0, err
+		log.Errorf("could not parse orgs response: [ %s ]", err.Error())
+		return 0, errors.Wrapf(err, "could not parse orgs response [ %s ]", string(bodyBytes))
 	}
 
 	for _, orgInfo := range orgInfoList {
@@ -480,7 +481,7 @@ func (p *Plugin) GetOrgId() (int, error) {
 		if orgInfo.Name == p.Repo.Owner {
 			log.Debugf("found org: [ %s ], with id: [ %d ]", orgInfo.Name, orgInfo.Id)
 			p.Config.OrgId = orgInfo.Id
-			return p.Config.OrgId, nil;
+			return p.Config.OrgId, nil
 		}
 	}
 	log.Debugf("could not find organization: [%s]", p.Repo.Owner)
