@@ -14,12 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type TestCase struct {
-	Name       string
-	Cfg        Config
-	AuthHeader string
-}
-
 const (
 	orgsResponse        = `[{"id":1,"createdAt":"2018-04-11T13:58:55Z","updatedAt":"2018-04-11T13:58:55Z","name":"org1"},{"id":2,"githubId":32848483,"createdAt":"2018-04-11T13:58:55Z","updatedAt":"2018-04-11T13:58:55Z","name":"org2"}]`
 	invalidJsonResponse = "invalid json response payload"
