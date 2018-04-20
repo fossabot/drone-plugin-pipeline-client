@@ -12,6 +12,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"context"
+	"time"
 )
 
 const (
@@ -160,4 +162,42 @@ func TestPlugin_GetOrgId(t *testing.T) {
 			test.assert(test.plugin.GetOrgId())
 		})
 	}
+}
+
+func TestPlugin_WaitForResource(t *testing.T) {
+	tests := []struct {
+		name            string //name of the test case
+		timeout         time.Duration
+		resourceChecker func() bool
+		assert          func(err error) // assertions
+	}{
+		{
+			name:    "resource is available",
+			timeout: 5 * time.Second,
+			resourceChecker: func() bool {
+				return true
+			},
+			assert: func(err error) {
+				assert.Nil(t, err, "the result should not be nil")
+			},
+		},
+		{
+			name: "resource is not available - timeout",
+			timeout: 5 * time.Second,
+			resourceChecker: func() bool {
+				return false
+			},
+			assert: func(err error) {
+				assert.EqualError(t, context.DeadlineExceeded, err.Error())
+			},
+		},
+	}
+
+	p := Plugin{}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			test.assert(p.waitForResource(test.timeout, test.resourceChecker))
+		})
+	}
+
 }

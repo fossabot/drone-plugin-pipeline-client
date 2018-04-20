@@ -15,6 +15,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/go-playground/validator.v9"
 	"path"
+	"context"
 )
 
 type (
@@ -97,6 +98,8 @@ type (
 const (
 	createdState = "created"
 	deletedState = "deleted"
+	// resource polling times out after this time interval in hours
+	resourceCreationTimeout = 2 * time.Hour
 )
 
 var validate *validator.Validate
@@ -119,7 +122,9 @@ func (p *Plugin) Exec() error {
 	log.Debugf("retrieved org id: [ %d ]", orgId)
 	log.Infof("cluster desired state: [%s]", p.Config.Cluster.State)
 
-	if p.Config.Cluster.State == createdState && !p.ClusterExists() {
+	clusterExists := p.ClusterExists()
+
+	if p.Config.Cluster.State == createdState && !clusterExists {
 		_, err := p.createCluster()
 
 		if err != nil {
@@ -127,19 +132,17 @@ func (p *Plugin) Exec() error {
 			os.Exit(1)
 		}
 
-		log.Infof("waiting for the cluster [%s] to start ...", p.Config.Cluster.Name)
-
-		for ok := true; ok; ok = !p.ClusterExists() {
-			ok = !p.ClusterExists()
-			if ok {
-				time.Sleep(5 * time.Second)
-			}
+		err = p.waitForResource(resourceCreationTimeout, p.ClusterExists)
+		if err != nil {
+			log.Error("error while waiting for cluster creation")
+			return errors.Wrap(err, "error while waiting for cluster creation")
 		}
+
 		log.Infof("cluster [%s] started.", p.Config.Cluster.Name)
 
 	} else if p.Config.Cluster.State == createdState {
 		log.Infof("using existing cluster: [%s]", p.Config.Cluster.Name)
-	} else if p.Config.Cluster.State == deletedState && p.ClusterExists() {
+	} else if p.Config.Cluster.State == deletedState && clusterExists {
 		p.deleteCluster()
 		return nil
 	} else {
@@ -161,18 +164,18 @@ func (p *Plugin) Exec() error {
 
 	if len(p.Config.Deployment.Name) > 0 {
 		log.Infof("checking deployment [%s]", p.Config.Deployment.Name)
-		if p.Config.Deployment.State == createdState && !p.deploymentExists() {
+		if p.Config.Deployment.State == createdState && !p.DeploymentExists() {
 			p.installDeployment()
 
-			for ok := true; ok; ok = !p.deploymentExists() {
-				ok = !p.deploymentExists()
-				if ok {
-					time.Sleep(5 * time.Second)
-				}
+			err = p.waitForResource(resourceCreationTimeout, p.DeploymentExists)
+			if err != nil {
+				log.Error("error while waiting for deployment creation")
+				return errors.Wrap(err, "error while waiting for deployment creation")
 			}
+
 		} else if p.Config.Deployment.State == createdState {
 			log.Infof("deployment [%s] already exists, nothing to do", p.Config.Deployment.Name)
-		} else if p.Config.Deployment.State == deletedState && p.deploymentExists() {
+		} else if p.Config.Deployment.State == deletedState && p.DeploymentExists() {
 			p.deleteDeployment()
 		}
 	}
@@ -269,10 +272,13 @@ func (p *Plugin) createCluster() (bool, error) {
 	case http.StatusOK: // 200
 		log.Infof("cluster [%s] is being created", p.Config.Cluster.Name)
 		return true, nil
+	case http.StatusAccepted: // 202
+		log.Infof("cluster creation request for [%s] has been accepted", p.Config.Cluster.Name)
+		return true, nil
 	case http.StatusBadRequest: // 400
 		return false, errors.New(fmt.Sprintf("bad request while creating cluster [%s]", resp.Status))
 	default:
-		return false, errors.New(fmt.Sprintf("unexpected error %+v", resp))
+		return false, errors.New(fmt.Sprintf("unexpected response status code: [ %d ]", resp.StatusCode))
 
 	}
 
@@ -303,7 +309,7 @@ func (p *Plugin) isHelmReady() bool {
 	return false
 }
 
-func (p *Plugin) deploymentExists() bool {
+func (p *Plugin) DeploymentExists() bool {
 
 	url := fmt.Sprintf("%s/orgs/%d/clusters/%s/deployments/%s?field=name", p.Config.Endpoint, p.Config.OrgId,
 		p.Config.Cluster.Name, p.Config.Deployment.ReleaseName)
@@ -344,11 +350,15 @@ func (p *Plugin) ClusterExists() bool {
 	case http.StatusNoContent:
 		log.Debugf("cluster [%s] not yet alive.", p.Config.Cluster.Name)
 		return false
+	case http.StatusBadRequest:
+		log.Debugf("cluster [%s] not yet available.", p.Config.Cluster.Name)
+		return false
+
 	default:
-		log.Debugf("(cluster status req) ignored response code : [%s] ", resp.StatusCode)
+		log.Debugf("(cluster status req) ignored response code : [%d] ", resp.StatusCode)
 	}
 
-	log.Fatalf("error while checking cluster existence %+v", resp)
+	log.Fatalf("error while checking cluster existence. response code: [ %d ], status message: [ %s ]", resp.StatusCode, resp.Status)
 	return false
 }
 
@@ -484,7 +494,49 @@ func (p *Plugin) GetOrgId() (int, error) {
 			return p.Config.OrgId, nil
 		}
 	}
+
 	log.Debugf("could not find organization: [%s]", p.Repo.Owner)
 	return 0, fmt.Errorf("could not find id for organization: [%s]" + p.Repo.Owner)
 
+}
+
+// waitForResource given a timeout period and a resource checker function this method blocks till the resource becomes available
+// or the timeout period is exceeded
+func (p Plugin) waitForResource(timeout time.Duration, resourceChecker func() bool) error {
+	log.Info("checking for the resource availability ...")
+	var ret error
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel = context.WithCancel(ctx)
+	defer cancel()
+
+	pollerChan := make(chan string)
+
+	poller := func() chan string {
+
+		if resourceChecker() {
+			// only write in the channel in case the resource is available
+			log.Debug("resource READY")
+			pollerChan <- "ready"
+			return pollerChan
+		}
+		log.Info("resource NOT READY")
+		return pollerChan
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Error("timeout happened")
+			return ctx.Err()
+		case <-pollerChan:
+			log.Debug("resource available")
+			return nil
+		default:
+			go poller()
+			time.Sleep(5 * time.Second)
+		}
+	}
+
+	return ret
 }
