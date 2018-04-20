@@ -10,12 +10,13 @@ import (
 	"os"
 	"time"
 
+	"context"
+	"path"
+
 	. "github.com/banzaicloud/banzai-types/components"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/go-playground/validator.v9"
-	"path"
-	"context"
 )
 
 type (
@@ -504,7 +505,6 @@ func (p *Plugin) GetOrgId() (int, error) {
 // or the timeout period is exceeded
 func (p Plugin) waitForResource(timeout time.Duration, resourceChecker func() bool) error {
 	log.Info("checking for the resource availability ...")
-	var ret error
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	ctx, cancel = context.WithCancel(ctx)
@@ -538,5 +538,4 @@ func (p Plugin) waitForResource(timeout time.Duration, resourceChecker func() bo
 		}
 	}
 
-	return ret
 }

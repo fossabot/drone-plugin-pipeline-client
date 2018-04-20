@@ -10,10 +10,11 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
 	"context"
 	"time"
+
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -182,7 +183,7 @@ func TestPlugin_WaitForResource(t *testing.T) {
 			},
 		},
 		{
-			name: "resource is not available - timeout",
+			name:    "resource is not available - timeout",
 			timeout: 5 * time.Second,
 			resourceChecker: func() bool {
 				return false
