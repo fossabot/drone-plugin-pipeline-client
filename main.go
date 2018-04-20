@@ -400,6 +400,12 @@ func main() {
 			Usage:  "The secret id",
 			EnvVar: "PLUGIN_SECRET_ID",
 		},
+		cli.Int64Flag{
+			Name:   "plugin.resource.timeout",
+			Usage:  "plugin will timeout if resource creation takes longer than this interval (in seconds)",
+			EnvVar: "PLUGIN_RESOURCE_TIMEOUT",
+			Value:  2 * 60 * 60, // 2 hours
+		},
 	}
 	app.Run(os.Args)
 }
@@ -507,10 +513,11 @@ func run(c *cli.Context) error {
 			},
 		},
 		Config: Config{
-			Endpoint: c.String("plugin.endpoint"),
-			Username: c.String("plugin.username"),
-			Password: c.String("plugin.password"),
-			Token:    c.String("plugin.token"),
+			Endpoint:    c.String("plugin.endpoint"),
+			Username:    c.String("plugin.username"),
+			Password:    c.String("plugin.password"),
+			Token:       c.String("plugin.token"),
+			WaitTimeout: c.Int64("plugin.resource.timeout"),
 
 			Cluster: &CustomCluster{
 				CreateClusterRequest: &components.CreateClusterRequest{

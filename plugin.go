@@ -67,13 +67,14 @@ type (
 	}
 
 	Config struct {
-		Cluster    *CustomCluster
-		Deployment *Deployment
-		Username   string
-		Password   string
-		Endpoint   string
-		Token      string
-		OrgId      int
+		Cluster     *CustomCluster
+		Deployment  *Deployment
+		Username    string
+		Password    string
+		Endpoint    string
+		Token       string
+		OrgId       int
+		WaitTimeout int64
 	}
 
 	CustomCluster struct {
@@ -100,12 +101,13 @@ const (
 	createdState = "created"
 	deletedState = "deleted"
 	// resource polling times out after this time interval in hours
-	resourceCreationTimeout = 2 * time.Hour
+
 )
 
 var validate *validator.Validate
 
 func (p *Plugin) Exec() error {
+	resourceCreationTimeout := time.Duration(p.Config.WaitTimeout) * time.Second
 	validate = validator.New()
 
 	err := validate.Struct(p)
@@ -508,7 +510,6 @@ func (p Plugin) waitForResource(timeout time.Duration, resourceChecker func() bo
 
 	// set up a context instance to control timeout and cancel waiting for resources
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	ctx, cancel = context.WithCancel(ctx)
 	defer cancel()
 
 	// this channel is written when the resource becomes available
