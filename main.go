@@ -8,15 +8,15 @@ import (
 	"strings"
 	"text/template"
 
-	. "github.com/banzaicloud/banzai-types/components"
 	"github.com/banzaicloud/banzai-types/components/amazon"
 	"github.com/banzaicloud/banzai-types/components/azure"
-	"github.com/banzaicloud/banzai-types/components/byoc"
 	"github.com/banzaicloud/banzai-types/components/dummy"
 	"github.com/banzaicloud/banzai-types/components/google"
 	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
+	"github.com/banzaicloud/banzai-types/components/kubernetes"
+	"github.com/banzaicloud/banzai-types/components"
 )
 
 var (
@@ -469,6 +469,8 @@ func run(c *cli.Context) error {
 		}
 	}
 
+	const defaultNodePoolName = "default-node-pool"
+
 	plugin := Plugin{
 		ApiCall: ApiCall,
 		Repo: Repo{
@@ -511,25 +513,27 @@ func run(c *cli.Context) error {
 			Token:    c.String("plugin.token"),
 
 			Cluster: &CustomCluster{
-				CreateClusterRequest: &CreateClusterRequest{
-					Name:             c.String("plugin.cluster.name"),
-					Location:         c.String("plugin.cluster.location"),
-					Cloud:            c.String("plugin.cluster.provider"),
-					NodeInstanceType: c.String("plugin.node.instance_type"),
-					SecretId:         c.String("plugin.secret.id"),
+				CreateClusterRequest: &components.CreateClusterRequest{
+					Name:     c.String("plugin.cluster.name"),
+					Location: c.String("plugin.cluster.location"),
+					Cloud:    c.String("plugin.cluster.provider"),
+					SecretId: c.String("plugin.secret.id"),
 					Properties: struct {
-						CreateClusterAmazon *amazon.CreateClusterAmazon `json:"amazon,omitempty"`
-						CreateClusterAzure  *azure.CreateClusterAzure   `json:"azure,omitempty"`
-						CreateClusterGoogle *google.CreateClusterGoogle `json:"google,omitempty"`
-						CreateClusterDummy  *dummy.CreateClusterDummy   `json:"dummy,omitempty"`
-						CreateBYOC          *byoc.CreateBYOC            `json:"byoc,omitempty"`
+						CreateClusterAmazon *amazon.CreateClusterAmazon  `json:"amazon,omitempty"`
+						CreateClusterAzure  *azure.CreateClusterAzure    `json:"azure,omitempty"`
+						CreateClusterGoogle *google.CreateClusterGoogle  `json:"google,omitempty"`
+						CreateClusterDummy  *dummy.CreateClusterDummy    `json:"dummy,omitempty"`
+						CreateKubernetes    *kubernetes.CreateKubernetes `json:"kubernetes,omitempty"`
 					}{
 						CreateClusterAmazon: &amazon.CreateClusterAmazon{
-							Node: &amazon.CreateAmazonNode{
-								SpotPrice: c.String("plugin.amazon.node.spot_price"),
-								MinCount:  c.Int("plugin.amazon.node.min_count"),
-								MaxCount:  c.Int("plugin.amazon.node.max_count"),
-								Image:     c.String("plugin.amazon.node.image"),
+							NodePools: map[string]*amazon.AmazonNodePool{
+								defaultNodePoolName: &amazon.AmazonNodePool{
+									Image:        c.String("plugin.amazon.node.image"),
+									MaxCount:     c.Int("plugin.amazon.node.max_count"),
+									MinCount:     c.Int("plugin.amazon.node.min_count"),
+									InstanceType: c.String("plugin.node.instance_type"),
+									SpotPrice:    c.String("plugin.amazon.node.spot_price"),
+								},
 							},
 							Master: &amazon.CreateAmazonMaster{
 								InstanceType: c.String("plugin.amazon.master.instance_type"),
@@ -537,28 +541,29 @@ func run(c *cli.Context) error {
 							},
 						},
 						CreateClusterAzure: &azure.CreateClusterAzure{
-							Node: &azure.CreateAzureNode{
-								ResourceGroup:     c.String("plugin.azure.resource_group"),
-								AgentCount:        c.Int("plugin.azure.node.count"),
-								AgentName:         c.String("plugin.azure.agent_name"),
-								KubernetesVersion: c.String("plugin.azure.kubernetes_version"),
+							NodePools: map[string]*azure.NodePoolCreate{
+								defaultNodePoolName: &azure.NodePoolCreate{
+									Count:            c.Int("plugin.azure.node.count"),
+									NodeInstanceType: c.String("plugin.node.instance_type"),
+								},
 							},
+							KubernetesVersion: c.String("plugin.azure.kubernetes_version"),
+							ResourceGroup:     c.String("plugin.azure.resource_group"),
 						},
 						CreateClusterGoogle: &google.CreateClusterGoogle{
 							Project: c.String("plugin.google.project"),
-							Master: &google.GoogleMaster{
+							Master: &google.Master{
 								Version: c.String("plugin.google.gke.version"),
 							},
 							NodeVersion: c.String("plugin.google.gke.version"),
-							NodePools: map[string]*google.GoogleNodePool{
-								"default-node-pool": &google.GoogleNodePool{
+							NodePools: map[string]*google.NodePool{
+								defaultNodePoolName: &google.NodePool{
 									NodeInstanceType: c.String("plugin.node.instance_type"),
 									Count:            c.Int("plugin.google.node.count"),
 								},
 							},
 						},
 						CreateClusterDummy: nil,
-						CreateBYOC:         nil,
 					},
 				},
 				State: c.String("plugin.cluster.state"),

@@ -8,12 +8,12 @@
     "components",
     "components/amazon",
     "components/azure",
-    "components/byoc",
     "components/dummy",
     "components/google",
+    "components/kubernetes",
     "constants"
   ]
-  revision = "d36c303373b4ef2960fb1f9d6cc51820e6e8592b"
+  revision = "f8ab2836b8017bc58092a1c12f5ce1d06151b4af"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -96,6 +96,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d9e2d9f0c3b2d013a24d72e44140671152fcc6cead757833e4c3828cfd532697"
+  inputs-digest = "541689081215750c8c9ce4a5e39fa1b7089dfcca38a1af3c342fe1d84d6c6dbf"
   solver-name = "gps-cdcl"
   solver-version = 1
