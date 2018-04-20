@@ -506,22 +506,23 @@ func (p *Plugin) GetOrgId() (int, error) {
 func (p Plugin) waitForResource(timeout time.Duration, resourceChecker func() bool) error {
 	log.Info("checking for the resource availability ...")
 
+	// set up a context instance to control timeout and cancel waiting for resources
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	ctx, cancel = context.WithCancel(ctx)
 	defer cancel()
 
+	// this channel is written when the resource becomes available
 	pollerChan := make(chan string)
 
-	poller := func() chan string {
+	poller := func() {
 
 		if resourceChecker() {
 			// only write in the channel in case the resource is available
-			log.Debug("resource READY")
+			log.Debug("resource available")
 			pollerChan <- "ready"
-			return pollerChan
+			close(pollerChan)
 		}
-		log.Info("resource NOT READY")
-		return pollerChan
+		log.Debug("resource not yet available")
 	}
 
 	for {
