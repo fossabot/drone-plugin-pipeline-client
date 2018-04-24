@@ -73,7 +73,6 @@ type (
 		Token       string
 		OrgId       int
 		WaitTimeout int64
-		ProfileName string
 	}
 
 	CustomCluster struct {
@@ -104,62 +103,65 @@ const (
 var validate *validator.Validate
 
 func (p *Plugin) Exec() error {
-	resourceCreationTimeout := time.Duration(p.Config.WaitTimeout) * time.Second
-	validate = validator.New()
+	log.Debug("start executing plugin logic ...")
 
-	err := validate.Struct(p)
+	resourceCreationTimeout := time.Duration(p.Config.WaitTimeout) * time.Second
+
+	err := p.validate()
 	if err != nil {
-		for _, v := range err.(validator.ValidationErrors) {
-			log.Errorf("[%s] field validation error (%+v)", v.Field(), v)
-		}
 		return errors.Wrap(err, "validation error(s)")
 	}
 
-	orgId, err := p.GetOrgId()
+	_, err = p.GetOrgId()
 	if err != nil {
-		return errors.Wrap(err, "could not retrieve org id")
+		return errors.Wrap(err, "could not retrieve organization id")
 	}
-	log.Debugf("retrieved org id: [ %d ]", orgId)
-	log.Infof("cluster desired state: [%s]", p.Config.Cluster.State)
 
-	clusterExists := p.ClusterExists()
+	switch p.Config.Cluster.State {
+	case createdState:
+		if p.ClusterExists() {
+			log.Infof("reusing cluster [ %s ]", p.Config.Cluster.Name)
+		} else {
+			_, err := p.createCluster()
+			if err != nil {
+				log.Fatalf("cluster creation failed: [ %s ]", err.Error())
+				return errors.Wrap(err, "cluster creation failed")
+			}
 
-	if p.Config.Cluster.State == createdState && !clusterExists {
-		_, err := p.createCluster()
+			err = p.waitForResource(resourceCreationTimeout, p.ClusterExists)
+			if err != nil {
+				log.Error("error while waiting for cluster creation")
+				return errors.Wrap(err, "error while waiting for cluster creation")
+			}
 
-		if err != nil {
-			log.Fatalf("cluster creation failed: [%s]", err.Error())
-			return errors.Wrap(err, "cluster creation failed")
+			log.Infof("cluster [ %s ] created.", p.Config.Cluster.Name)
 		}
 
-		err = p.waitForResource(resourceCreationTimeout, p.ClusterExists)
-		if err != nil {
-			log.Error("error while waiting for cluster creation")
-			return errors.Wrap(err, "error while waiting for cluster creation")
+		// we need the cluster config in order to interact with it
+		if !p.dumpClusterConfig() {
+			return errors.Errorf("could not dump configuration for cluster: [%s]", p.Config.Cluster.Name)
 		}
-
-		log.Infof("cluster [%s] started.", p.Config.Cluster.Name)
-
-	} else if p.Config.Cluster.State == createdState {
-		log.Infof("using existing cluster: [%s]", p.Config.Cluster.Name)
-	} else if p.Config.Cluster.State == deletedState && clusterExists {
-		p.deleteCluster()
+	case deletedState:
+		if p.ClusterExists() {
+			if p.deleteCluster() {
+				log.Infof("triggered cluster deletion for: [ %s ].", p.Config.Cluster.Name)
+			}
+		} else {
+			log.Infof("cluster doesn't exist, nothing to delete: [ %s ].", p.Config.Cluster.Name)
+		}
+		// ending the flow here!
 		return nil
-	} else {
-		return nil
+	default:
+		return errors.Errorf("invalid or missing state: [%s] for cluster: [%s]", p.Config.Cluster.State, p.Config.Cluster.Name)
 	}
 
 	log.Info("setting up helm ...")
 	err = p.waitForResource(resourceCreationTimeout, p.isHelmReady)
 	if err != nil {
-		log.Error("error while waiting for cluster creation")
-		return errors.Wrap(err, "error while waiting for cluster creation")
+		log.Error("error while setting up helm")
+		return errors.Wrap(err, "error while setting up helm")
 	}
 	log.Info("helm is ready.")
-
-	if p.Config.Cluster.State == createdState {
-		p.dumpClusterConfig()
-	}
 
 	if len(p.Config.Deployment.Name) > 0 {
 		log.Infof("checking deployment [%s]", p.Config.Deployment.Name)
@@ -209,7 +211,7 @@ func ApiCall(config *Config, url string, method string, body io.Reader) *http.Re
 
 	err = config.requestAuth(req)
 	if err != nil {
-		log.Fatalf("could not create request [%s]", err.Error())
+		log.Fatalf("failed to decorate request, error: [%s]", err.Error())
 	}
 
 	if method == http.MethodPost {
@@ -253,7 +255,7 @@ func (p *Plugin) deleteCluster() bool {
 }
 
 func (p *Plugin) createCluster() (bool, error) {
-	log.Infof("start creating cluster with name: [%s]", p.Config.Cluster.Name)
+	log.Infof("creating cluster with name: [%s]", p.Config.Cluster.Name)
 
 	url := fmt.Sprintf("%s/orgs/%d/clusters", p.Config.Endpoint, p.Config.OrgId)
 	param, err := json.Marshal(p.Config.Cluster)
@@ -535,4 +537,16 @@ func (p *Plugin) waitForResource(timeout time.Duration, resourceChecker func() b
 		}
 	}
 
+}
+
+// validate validates the Plugin struct
+func (p *Plugin) validate() error {
+
+	err := validator.New().Struct(p)
+	if err != nil {
+		log.Errorf("plugin validation failed: %s", err.Error())
+		return errors.Wrap(err, "validation error(s)")
+	}
+
+	return nil
 }

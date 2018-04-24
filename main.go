@@ -398,7 +398,6 @@ func main() {
 			Name:   "plugin.profile.name",
 			Usage:  "the name of the profile to be used to create the cluster",
 			EnvVar: "PLUGIN_PROFILE_NAME",
-			Value:  "default", // 2 hours
 		},
 	}
 	app.Run(os.Args)
@@ -432,10 +431,6 @@ func run(c *cli.Context) error {
 	excludeVars := map[string]bool{
 		"PLUGIN_ENDPOINT": true,
 		"ENDPOINT":        true,
-		"PLUGIN_USERNAME": true,
-		"USERNAME":        true,
-		"PLUGIN_PASSWORD": true,
-		"PASSWORD":        true,
 	}
 
 	items := map[string]string{}
@@ -514,11 +509,10 @@ func run(c *cli.Context) error {
 
 			Cluster: &CustomCluster{
 				CreateClusterRequest: &components.CreateClusterRequest{
-					Name:        c.String("plugin.cluster.name"),
-					Location:    c.String("plugin.cluster.location"),
-					Cloud:       c.String("plugin.cluster.provider"),
-					SecretId:    c.String("plugin.secret.id"),
-					ProfileName: c.String("plugin.profile.name"),
+					Name:     c.String("plugin.cluster.name"),
+					Location: c.String("plugin.cluster.location"),
+					Cloud:    c.String("plugin.cluster.provider"),
+					SecretId: c.String("plugin.secret.id"),
 					Properties: struct {
 						CreateClusterAmazon *amazon.CreateClusterAmazon  `json:"amazon,omitempty"`
 						CreateClusterAzure  *azure.CreateClusterAzure    `json:"azure,omitempty"`
@@ -579,6 +573,7 @@ func run(c *cli.Context) error {
 	}
 
 	plugin.processServiceAccount(c)
+	plugin.processProfile(c)
 
 	err := plugin.Exec()
 	if err != nil {
@@ -613,6 +608,14 @@ func (plugin *Plugin) processServiceAccount(c *cli.Context) {
 		for i, _ := range plugin.Config.Cluster.Properties.CreateClusterGoogle.NodePools {
 			plugin.Config.Cluster.Properties.CreateClusterGoogle.NodePools[i].ServiceAccount = serviceAccount
 		}
+	}
+}
+func (plugin *Plugin) processProfile(c *cli.Context) {
+	profileName := c.String("plugin.profile.name")
+	log.Debugf("using profile: [%s]", profileName)
+	if len(profileName) > 0 {
+		plugin.Config.Cluster.ProfileName = profileName
+		log.Debugf("set profile: [%s]", plugin.Config.Cluster.ProfileName)
 	}
 }
 
