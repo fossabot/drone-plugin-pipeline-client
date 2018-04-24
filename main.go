@@ -36,8 +36,6 @@ var (
 	}
 )
 
-const nodePoolName = "default-node-pool"
-
 func main() {
 
 	_ = godotenv.Load()
@@ -238,23 +236,13 @@ func main() {
 			EnvVar: "PLUGIN_ENDPOINT,ENDPOINT",
 		},
 		cli.StringFlag{
-			Name:   "plugin.username",
-			Usage:  "API Username",
-			EnvVar: "PLUGIN_USERNAME,USERNAME",
-		},
-		cli.StringFlag{
-			Name:   "plugin.password",
-			Usage:  "API Password",
-			EnvVar: "PLUGIN_PASSWORD,PASSWORD",
-		},
-		cli.StringFlag{
 			Name:   "plugin.token",
 			Usage:  "API OAuth Token",
 			EnvVar: "PLUGIN_TOKEN,TOKEN",
 		},
 		cli.StringFlag{
 			Name:   "plugin.cluster.name",
-			Usage:  "K8S Cluster name",
+			Usage:  "Kubernetes Cluster name",
 			EnvVar: "PLUGIN_CLUSTER_NAME",
 		},
 		cli.StringFlag{
@@ -406,6 +394,12 @@ func main() {
 			EnvVar: "PLUGIN_RESOURCE_TIMEOUT",
 			Value:  2 * 60 * 60, // 2 hours
 		},
+		cli.StringFlag{
+			Name:   "plugin.profile.name",
+			Usage:  "the name of the profile to be used to create the cluster",
+			EnvVar: "PLUGIN_PROFILE_NAME",
+			Value:  "default", // 2 hours
+		},
 	}
 	app.Run(os.Args)
 }
@@ -433,6 +427,7 @@ func setDefaults(c *cli.Context) {
 }
 
 func run(c *cli.Context) error {
+	log.Info("start executing step interacting with pipeline")
 
 	excludeVars := map[string]bool{
 		"PLUGIN_ENDPOINT": true,
@@ -514,17 +509,16 @@ func run(c *cli.Context) error {
 		},
 		Config: Config{
 			Endpoint:    c.String("plugin.endpoint"),
-			Username:    c.String("plugin.username"),
-			Password:    c.String("plugin.password"),
 			Token:       c.String("plugin.token"),
 			WaitTimeout: c.Int64("plugin.resource.timeout"),
 
 			Cluster: &CustomCluster{
 				CreateClusterRequest: &components.CreateClusterRequest{
-					Name:     c.String("plugin.cluster.name"),
-					Location: c.String("plugin.cluster.location"),
-					Cloud:    c.String("plugin.cluster.provider"),
-					SecretId: c.String("plugin.secret.id"),
+					Name:        c.String("plugin.cluster.name"),
+					Location:    c.String("plugin.cluster.location"),
+					Cloud:       c.String("plugin.cluster.provider"),
+					SecretId:    c.String("plugin.secret.id"),
+					ProfileName: c.String("plugin.profile.name"),
 					Properties: struct {
 						CreateClusterAmazon *amazon.CreateClusterAmazon  `json:"amazon,omitempty"`
 						CreateClusterAzure  *azure.CreateClusterAzure    `json:"azure,omitempty"`

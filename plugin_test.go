@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"bytes"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -37,24 +36,9 @@ func TestAuthorizationHeader(t *testing.T) {
 			authHeader: "Bearer bearertoken",
 		},
 		{
-			name: "Basic auth",
-			config: Config{
-				Username: "testing",
-			},
-			authHeader: "Basic " + base64.StdEncoding.EncodeToString([]byte("testing:")),
-		},
-		{
 			name:       "No auth",
 			config:     Config{},
 			authHeader: "",
-		},
-		{
-			name: "Bearer and basic",
-			config: Config{
-				Username: "testing",
-				Token:    "tokenke",
-			},
-			authHeader: "Bearer tokenke",
 		},
 	}
 

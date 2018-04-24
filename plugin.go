@@ -69,12 +69,11 @@ type (
 	Config struct {
 		Cluster     *CustomCluster
 		Deployment  *Deployment
-		Username    string
-		Password    string
 		Endpoint    string
 		Token       string
 		OrgId       int
 		WaitTimeout int64
+		ProfileName string
 	}
 
 	CustomCluster struct {
@@ -100,8 +99,6 @@ type (
 const (
 	createdState = "created"
 	deletedState = "deleted"
-	// resource polling times out after this time interval in hours
-
 )
 
 var validate *validator.Validate
@@ -132,7 +129,7 @@ func (p *Plugin) Exec() error {
 
 		if err != nil {
 			log.Fatalf("cluster creation failed: [%s]", err.Error())
-			os.Exit(1)
+			return errors.Wrap(err, "cluster creation failed")
 		}
 
 		err = p.waitForResource(resourceCreationTimeout, p.ClusterExists)
@@ -153,11 +150,10 @@ func (p *Plugin) Exec() error {
 	}
 
 	log.Info("setting up helm ...")
-	for ok := true; ok; ok = !p.isHelmReady() {
-		ok = !p.isHelmReady()
-		if ok {
-			time.Sleep(5 * time.Second)
-		}
+	err = p.waitForResource(resourceCreationTimeout, p.isHelmReady)
+	if err != nil {
+		log.Error("error while waiting for cluster creation")
+		return errors.Wrap(err, "error while waiting for cluster creation")
 	}
 	log.Info("helm is ready.")
 
@@ -189,17 +185,13 @@ func (p *Plugin) Exec() error {
 // requestAuth fills the authorization header for the provided request based on the configuration
 func (config *Config) requestAuth(request *http.Request) error {
 	if request == nil {
-		log.Fatal("http request is nil")
+		log.Error("http request is nil")
+		return errors.New("http request is nil")
 	}
+
 	if len(config.Token) > 0 {
 		log.Debug("bearer token provided, setting the Authorization header")
 		request.Header.Set("Authorization", "Bearer "+config.Token)
-		return nil
-	}
-
-	if len(config.Username) > 0 {
-		log.Debug("username provided, proceeding to basic auth")
-		request.SetBasicAuth(config.Username, config.Password)
 		return nil
 	}
 
@@ -209,13 +201,16 @@ func (config *Config) requestAuth(request *http.Request) error {
 
 func ApiCall(config *Config, url string, method string, body io.Reader) *http.Response {
 	log.Debugf("api call args -> url: [%s], method: [%s]", url, method)
-	req, err := http.NewRequest(method, url, body)
 
+	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		log.Fatalf("could not create request [%s]", err.Error())
 	}
 
-	config.requestAuth(req)
+	err = config.requestAuth(req)
+	if err != nil {
+		log.Fatalf("could not create request [%s]", err.Error())
+	}
 
 	if method == http.MethodPost {
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
@@ -505,7 +500,7 @@ func (p *Plugin) GetOrgId() (int, error) {
 
 // waitForResource given a timeout period and a resource checker function this method blocks till the resource becomes available
 // or the timeout period is exceeded
-func (p Plugin) waitForResource(timeout time.Duration, resourceChecker func() bool) error {
+func (p *Plugin) waitForResource(timeout time.Duration, resourceChecker func() bool) error {
 	log.Info("checking for the resource availability ...")
 
 	// set up a context instance to control timeout and cancel waiting for resources
