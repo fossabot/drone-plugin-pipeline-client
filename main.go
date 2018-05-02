@@ -344,6 +344,11 @@ func main() {
 			EnvVar: "PLUGIN_DEPLOYMENT_STATE",
 			Value:  "created",
 		},
+		cli.BoolFlag{
+			Name:   "plugin.deployment.reuse_values",
+			Usage:  "Specify if reuse values",
+			EnvVar: "PLUGIN_DEPLOYMENT_REUSE_VALUES",
+		},
 		cli.StringFlag{
 			Name:   "plugin.deployment.values",
 			Usage:  "Specific deployment values",
@@ -567,6 +572,7 @@ func run(c *cli.Context) error {
 				Name:        c.String("plugin.deployment.name"),
 				ReleaseName: c.String("plugin.deployment.release_name"),
 				State:       c.String("plugin.deployment.state"),
+				ReuseValues: c.Bool("plugin.deployment.reuse_values"),
 				Values:      deploymentValues,
 			},
 		},

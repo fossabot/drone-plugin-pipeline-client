@@ -84,6 +84,7 @@ type (
 		Name        string                 `json:"name"`
 		ReleaseName string                 `json:"release_name"`
 		State       string                 `json:"state"`
+		ReuseValues bool				   `json:"reuse_values"`
 		Values      map[string]interface{} `json:"values"`
 	}
 
@@ -175,7 +176,9 @@ func (p *Plugin) Exec() error {
 			}
 
 		} else if p.Config.Deployment.State == createdState {
-			log.Infof("deployment [%s] already exists, nothing to do", p.Config.Deployment.Name)
+			log.Infof("deployment [%s] already exists, updating ...", p.Config.Deployment.Name)
+			p.updateDeployment()
+
 		} else if p.Config.Deployment.State == deletedState && p.DeploymentExists() {
 			p.deleteDeployment()
 		}
@@ -422,6 +425,26 @@ func (p *Plugin) installDeployment() bool {
 	}
 
 	log.Fatalf("error while installing deployment: %+v", resp)
+	return false
+}
+
+func (p *Plugin) updateDeployment() bool {
+
+	log.Infof("updating deployment [%s]", p.Config.Deployment.Name)
+
+	url := fmt.Sprintf("%s/orgs/%d/clusters/%s/deployments/%s?field=name", p.Config.Endpoint, p.Config.OrgId, p.Config.Cluster.Name, p.Config.Deployment.ReleaseName)
+	param, _ := json.Marshal(p.Config.Deployment)
+
+	log.Debugf("updating deployment request body: [%s]", param)
+	resp := p.ApiCall(&p.Config, url, http.MethodPut, bytes.NewBuffer(param))
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusCreated {
+		log.Infof("deployment [%s] is being updated", p.Config.Deployment.Name)
+		return true
+	}
+
+	log.Fatalf("error while updating deployment: %+v", resp)
 	return false
 }
 
