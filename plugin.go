@@ -17,6 +17,7 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/go-playground/validator.v9"
+	"github.com/banzaicloud/banzai-types/components/helm"
 )
 
 type (
@@ -174,10 +175,27 @@ func (p *Plugin) Exec() error {
 				log.Error("error while waiting for deployment creation")
 				return errors.Wrap(err, "error while waiting for deployment creation")
 			}
+			err = p.waitForResource(resourceCreationTimeout, p.DeploymentReady)
+			if err != nil {
+				log.Error("error while waiting for deployment loadbalancer to get ready")
+				return errors.Wrap(err, "error while waiting for deployment loadbalancer to get ready")
+			}
 
 		} else if p.Config.Deployment.State == createdState {
 			log.Infof("deployment [%s] already exists, updating ...", p.Config.Deployment.Name)
 			p.updateDeployment()
+
+			err = p.waitForResource(resourceCreationTimeout, p.DeploymentExists)
+			if err != nil {
+				log.Error("error while waiting for deployment update")
+				return errors.Wrap(err, "error while waiting for deployment update")
+			}
+
+			err = p.waitForResource(resourceCreationTimeout, p.DeploymentReady)
+			if err != nil {
+				log.Error("error while waiting for deployment loadbalancer to get ready")
+				return errors.Wrap(err, "error while waiting for deployment loadbalancer to get ready")
+			}
 
 		} else if p.Config.Deployment.State == deletedState && p.DeploymentExists() {
 			p.deleteDeployment()
@@ -329,6 +347,44 @@ func (p *Plugin) DeploymentExists() bool {
 	case http.StatusNoContent: //204
 		log.Debugf("deployment [%s] is not yet ready", p.Config.Deployment.Name)
 		return false
+	default:
+		log.Debugf("(deployment exists req) ignored response status code [%d] ", resp.StatusCode)
+	}
+
+	log.Fatalf("error while checking deployment %+v", resp)
+	return false
+}
+
+func (p *Plugin) DeploymentReady() bool {
+	url := fmt.Sprintf("%s/orgs/%d/clusters/%s/endpoints?field=name&releaseName=%s", p.Config.Endpoint, p.Config.OrgId,
+		p.Config.Cluster.Name, p.Config.Deployment.ReleaseName)
+	resp := p.ApiCall(&p.Config, url, http.MethodGet, nil)
+	defer resp.Body.Close()
+	log.Infof("Waiting for the loadbalancer to get ready for deployment %s", p.Config.Deployment.ReleaseName)
+
+	switch resp.StatusCode {
+	case http.StatusAccepted: //202
+		log.Debugf("deployment's [%s] loadbalancer is not ready", p.Config.Deployment.ReleaseName)
+		return false
+	case http.StatusOK: // 200
+		log.Debugf("deployment's [%s] loadbalancer is ready", p.Config.Deployment.ReleaseName)
+		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Debugf("could not read response body. error: [ %s ] ", err.Error())
+		}
+		endpoints := helm.EndpointResponse{}
+		err = json.Unmarshal(bodyBytes, &endpoints)
+		log.Info("The available endpoints are the following:")
+		for _, endpoint := range endpoints.Endpoints {
+			for _, url := range endpoint.EndPointURLs {
+				log.Info( url.URL)
+			}
+		}
+		if err != nil {
+			log.Errorf("could not parse response: [ %s ]", err.Error())
+		}
+
+		return true
 	default:
 		log.Debugf("(deployment exists req) ignored response status code [%d] ", resp.StatusCode)
 	}
@@ -542,6 +598,7 @@ func (p *Plugin) waitForResource(timeout time.Duration, resourceChecker func() b
 			log.Debug("resource available")
 			pollerChan <- "ready"
 			close(pollerChan)
+			return
 		}
 		log.Debug("resource not yet available")
 	}
