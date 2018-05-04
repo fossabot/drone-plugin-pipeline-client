@@ -39,3 +39,8 @@
 [[constraint]]
   name = "github.com/Masterminds/sprig"
   version = "2.15.0"
+
+[prune]
+  go-tests = true
+  unused-packages = true
+  non-go = true
