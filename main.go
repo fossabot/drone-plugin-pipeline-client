@@ -37,6 +37,11 @@ var (
 	}
 )
 
+const (
+	pluginEnvPrefix = "PLUGIN_"
+	droneEnvPrefix  = "DRONE_"
+)
+
 func main() {
 
 	_ = godotenv.Load()
@@ -444,7 +449,7 @@ func run(c *cli.Context) error {
 	for _, element := range os.Environ() {
 		variable := strings.SplitN(element, "=", 2)
 
-		if strings.Contains(variable[0], "PLUGIN") && !excludeVars[variable[0]] {
+		if (strings.HasPrefix(variable[0], pluginEnvPrefix) || strings.HasPrefix(variable[0], droneEnvPrefix)) && !excludeVars[variable[0]] {
 			items[variable[0]] = variable[1]
 		}
 
@@ -462,7 +467,7 @@ func run(c *cli.Context) error {
 
 	if deploymentValStr != "" {
 
-		err := json.Unmarshal([]byte(processDeploymentSecrets(deploymentValStr, items)), &deploymentValues)
+		err := json.Unmarshal([]byte(processDeploymentSecrets(strings.Replace(deploymentValStr, "\\", "", -1), items)), &deploymentValues)
 
 		log.Debugf("deployment values: %+v", deploymentValues)
 
