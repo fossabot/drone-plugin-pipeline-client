@@ -2,6 +2,24 @@
 
 
 [[projects]]
+  name = "github.com/Masterminds/semver"
+  packages = ["."]
+  revision = "c7af12943936e8c39859482e61f0574c2fd7fc75"
+  version = "v1.4.2"
+
+[[projects]]
+  name = "github.com/Masterminds/sprig"
+  packages = ["."]
+  revision = "6b2a58267f6a8b1dc8e2eb5519b984008fa85e8c"
+  version = "v2.15.0"
+
+[[projects]]
+  name = "github.com/aokoli/goutils"
+  packages = ["."]
+  revision = "3391d3790d23d03408670993e957e8f408993c34"
+  version = "v1.0.1"
+
+[[projects]]
   branch = "master"
   name = "github.com/banzaicloud/banzai-types"
   packages = [
@@ -10,6 +28,7 @@
     "components/azure",
     "components/dummy",
     "components/google",
+    "components/helm",
     "components/kubernetes",
     "constants"
   ]
@@ -35,6 +54,24 @@
   packages = ["."]
   revision = "b32fa301c9fe55953584134cb6853a13c87ec0a1"
   version = "v0.16.0"
+
+[[projects]]
+  name = "github.com/google/uuid"
+  packages = ["."]
+  revision = "064e2069ce9c359c118179501254f67d7d37ba24"
+  version = "0.2"
+
+[[projects]]
+  name = "github.com/huandu/xstrings"
+  packages = ["."]
+  revision = "2bf18b218c51864a87384c06996e40ff9dcff8e1"
+  version = "v1.0.0"
+
+[[projects]]
+  name = "github.com/imdario/mergo"
+  packages = ["."]
+  revision = "9d5f1277e9a8ed20c3684bda8fde67c05628518c"
+  version = "v0.3.4"
 
 [[projects]]
   name = "github.com/joho/godotenv"
@@ -75,7 +112,11 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
-  packages = ["ssh/terminal"]
+  packages = [
+    "pbkdf2",
+    "scrypt",
+    "ssh/terminal"
+  ]
   revision = "f70185d77e8278766928032ee1355e3da47e7181"
 
 [[projects]]
@@ -96,6 +137,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "541689081215750c8c9ce4a5e39fa1b7089dfcca38a1af3c342fe1d84d6c6dbf"
+  inputs-digest = "3a92e64fef2292809802b1a78bbbe3fdffbceba151240341861c4185aa9c691f"
   solver-name = "gps-cdcl"
   solver-version = 1

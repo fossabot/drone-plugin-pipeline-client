@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"os"
 	"strings"
-	"text/template"
 
+	"github.com/Masterminds/sprig"
 	"github.com/banzaicloud/banzai-types/components"
 	"github.com/banzaicloud/banzai-types/components/amazon"
 	"github.com/banzaicloud/banzai-types/components/azure"
@@ -593,7 +594,7 @@ func run(c *cli.Context) error {
 func processDeploymentSecrets(deploymentValuesStr string, pluginEnv map[string]string) string {
 	log.Debug("filling secrets in deployment values...")
 
-	deplValTpl, err := template.New("depValTpl").Parse(deploymentValuesStr)
+	deplValTpl, err := template.New("depValTpl").Funcs(sprig.FuncMap()).Parse(deploymentValuesStr)
 	if err != nil {
 		log.Fatalf("failed to create template: [%s]", err.Error())
 	}

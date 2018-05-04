@@ -14,10 +14,10 @@ import (
 	"path"
 
 	. "github.com/banzaicloud/banzai-types/components"
+	"github.com/banzaicloud/banzai-types/components/helm"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/go-playground/validator.v9"
-	"github.com/banzaicloud/banzai-types/components/helm"
 )
 
 type (
@@ -85,7 +85,7 @@ type (
 		Name        string                 `json:"name"`
 		ReleaseName string                 `json:"release_name"`
 		State       string                 `json:"state"`
-		ReuseValues bool				   `json:"reuse_values"`
+		ReuseValues bool                   `json:"reuse_values"`
 		Values      map[string]interface{} `json:"values"`
 	}
 
@@ -360,10 +360,10 @@ func (p *Plugin) DeploymentReady() bool {
 		p.Config.Cluster.Name, p.Config.Deployment.ReleaseName)
 	resp := p.ApiCall(&p.Config, url, http.MethodGet, nil)
 	defer resp.Body.Close()
-	log.Infof("Waiting for the loadbalancer to get ready for deployment %s", p.Config.Deployment.ReleaseName)
 
 	switch resp.StatusCode {
 	case http.StatusAccepted: //202
+		log.Infof("Waiting for the loadbalancer to get ready for deployment %s", p.Config.Deployment.ReleaseName)
 		log.Debugf("deployment's [%s] loadbalancer is not ready", p.Config.Deployment.ReleaseName)
 		return false
 	case http.StatusOK: // 200
@@ -377,13 +377,16 @@ func (p *Plugin) DeploymentReady() bool {
 		log.Info("The available endpoints are the following:")
 		for _, endpoint := range endpoints.Endpoints {
 			for _, url := range endpoint.EndPointURLs {
-				log.Info( url.URL)
+				log.Info(url.URL)
 			}
 		}
 		if err != nil {
 			log.Errorf("could not parse response: [ %s ]", err.Error())
 		}
 
+		return true
+	case http.StatusNotFound: //404
+		log.Debugf("Deployment does not have a public endpoint")
 		return true
 	default:
 		log.Debugf("(deployment exists req) ignored response status code [%d] ", resp.StatusCode)
@@ -595,7 +598,6 @@ func (p *Plugin) waitForResource(timeout time.Duration, resourceChecker func() b
 
 		if resourceChecker() {
 			// only write in the channel in case the resource is available
-			log.Debug("resource available")
 			pollerChan <- "ready"
 			close(pollerChan)
 			return
