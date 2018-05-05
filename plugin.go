@@ -18,6 +18,7 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/go-playground/validator.v9"
+	"strings"
 )
 
 type (
@@ -376,8 +377,13 @@ func (p *Plugin) DeploymentReady() bool {
 		err = json.Unmarshal(bodyBytes, &endpoints)
 		log.Info("The available endpoints are the following:")
 		for _, endpoint := range endpoints.Endpoints {
-			for _, url := range endpoint.EndPointURLs {
-				log.Info(url.URL)
+			if strings.Contains(endpoint.Name, p.Config.Deployment.ReleaseName) {
+				log.Info(endpoint.Host)
+			}
+			if endpoint.EndPointURLs != nil {
+				for _, url := range endpoint.EndPointURLs {
+					log.Info(url.URL)
+				}
 			}
 		}
 		if err != nil {
