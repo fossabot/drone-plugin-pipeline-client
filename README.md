@@ -1,5 +1,6 @@
-
 ## Pipeline API client plugin for Drone
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fbanzaicloud%2Fdrone-plugin-pipeline-client.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fbanzaicloud%2Fdrone-plugin-pipeline-client?ref=badge_shield)
+
 
 Pipeline REST API client plugin for Drone. A step in the Pipeline PaaS CI/CD component to provision a Kubernetes cluster or use a managed one. Currently two cloud provider supported Amazon and Azure(AKS).
 
@@ -89,3 +90,7 @@ In this example beside the [required secrets](#specify-required-secrets) there i
 
 
 Are you a developer? Click [here](dev.md)
+
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fbanzaicloud%2Fdrone-plugin-pipeline-client.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fbanzaicloud%2Fdrone-plugin-pipeline-client?ref=badge_large)
